@@ -95,7 +95,7 @@ All 7 scenarios specified for Phase 5 were executed programmatically and manuall
    - Zero compilation errors.
    - Zero compilation warnings across all packages (`src/com/placementsystem/...` and `test/...`).
 2. **Typography and Tone**:
-   - Zero em dashes (`—`) in code, UI strings, comments, or documentation.
+   - Zero em dashes (unicode U+2014) in code, UI strings, comments, or documentation.
    - Zero emojis in any file.
    - Human, restrained tone explainable by a second-year engineering student.
 3. **Core OOP Architecture (KTU Syllabus)**:
