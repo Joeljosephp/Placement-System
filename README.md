@@ -34,6 +34,13 @@ javac -encoding UTF-8 -d bin src/com/placementsystem/*.java src/com/placementsys
 java -cp bin com.placementsystem.Main
 ```
 
+### Running Tests
+Plain Java test cases without external dependencies:
+```bash
+javac -encoding UTF-8 -cp bin -d bin test/PlacementSystemTest.java
+java -cp bin test.PlacementSystemTest
+```
+
 ## Demo Logins
 
 Pre-seeded accounts available on first launch:

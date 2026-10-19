@@ -1,10 +1,8 @@
 @echo off
-title Placement Management System - KTU S3 CS
-echo ====================================================
+title Placement Management System
 echo Starting Placement Management System...
-echo ====================================================
 
-java -cp bin com.placementsystem.Main
+java -cp bin com.placementsystem.Main %*
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
