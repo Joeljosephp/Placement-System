@@ -5,8 +5,7 @@ import com.placementsystem.exception.IneligibleStudentException;
 import com.placementsystem.model.*;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -15,12 +14,17 @@ public class DataManager {
     private static DataManager instance;
 
     private static final String DATA_DIR = "./data";
-    private static final String STUDENTS_FILE = DATA_DIR + "/students.dat";
-    private static final String COMPANIES_FILE = DATA_DIR + "/companies.dat";
-    private static final String DRIVES_FILE = DATA_DIR + "/drives.dat";
-    private static final String APPLICATIONS_FILE = DATA_DIR + "/applications.dat";
-    private static final String OFFICERS_FILE = DATA_DIR + "/officers.dat";
-    private static final String INTERVIEWS_FILE = DATA_DIR + "/interviews.dat";
+    private static final String UNIFIED_DATA_FILE = DATA_DIR + "/placement_data.dat";
+    private static final String BACKUP_DATA_FILE = DATA_DIR + "/placement_data.dat.bak";
+    private static final String TEMP_DATA_FILE = DATA_DIR + "/placement_data.dat.tmp";
+
+    // Legacy individual file paths for automatic migration fallback
+    private static final String LEGACY_STUDENTS_FILE = DATA_DIR + "/students.dat";
+    private static final String LEGACY_COMPANIES_FILE = DATA_DIR + "/companies.dat";
+    private static final String LEGACY_DRIVES_FILE = DATA_DIR + "/drives.dat";
+    private static final String LEGACY_APPLICATIONS_FILE = DATA_DIR + "/applications.dat";
+    private static final String LEGACY_OFFICERS_FILE = DATA_DIR + "/officers.dat";
+    private static final String LEGACY_INTERVIEWS_FILE = DATA_DIR + "/interviews.dat";
 
     private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "DataManager-Save-Worker");
@@ -61,6 +65,159 @@ public class DataManager {
         }
     }
 
+    public synchronized void loadAll() {
+        PlacementData data = readPlacementData();
+        if (data != null) {
+            this.students = data.getStudents();
+            this.companies = data.getCompanies();
+            this.drives = data.getDrives();
+            this.applications = data.getApplications();
+            this.officers = data.getOfficers();
+            this.interviews = data.getInterviews();
+            syncObjectGraph();
+        } else {
+            loadFromLegacyFiles();
+        }
+
+        seedDefaultOfficerIfEmpty();
+        seedSampleDataIfEmpty();
+
+        // Write initial unified file
+        saveAll();
+    }
+
+    private PlacementData readPlacementData() {
+        File primary = new File(UNIFIED_DATA_FILE);
+        if (primary.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(primary))) {
+                Object obj = ois.readObject();
+                if (obj instanceof PlacementData) {
+                    return (PlacementData) obj;
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Primary data file corrupted or unreadable: " + e.getMessage());
+            }
+        }
+
+        // Try backup file if primary is missing or corrupted
+        File backup = new File(BACKUP_DATA_FILE);
+        if (backup.exists()) {
+            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(backup))) {
+                Object obj = ois.readObject();
+                if (obj instanceof PlacementData) {
+                    System.out.println("Recovered database from backup: " + BACKUP_DATA_FILE);
+                    return (PlacementData) obj;
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Backup data file also unreadable: " + e.getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> List<T> readLegacyList(String filePath) {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return new ArrayList<>();
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            Object obj = ois.readObject();
+            if (obj instanceof List<?>) {
+                return (List<T>) obj;
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading legacy file " + filePath + ": " + e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
+    private void loadFromLegacyFiles() {
+        this.students = readLegacyList(LEGACY_STUDENTS_FILE);
+        this.companies = readLegacyList(LEGACY_COMPANIES_FILE);
+        this.drives = readLegacyList(LEGACY_DRIVES_FILE);
+        this.applications = readLegacyList(LEGACY_APPLICATIONS_FILE);
+        this.officers = readLegacyList(LEGACY_OFFICERS_FILE);
+        this.interviews = readLegacyList(LEGACY_INTERVIEWS_FILE);
+
+        syncObjectGraph();
+    }
+
+    /**
+     * Resolves object identity by connecting Application, PlacementDrive, Student, Company,
+     * and Interview references so that all entities share identical memory references.
+     */
+    private void syncObjectGraph() {
+        Map<String, Student> studentMap = new HashMap<>();
+        for (Student s : students) {
+            if (s != null && s.getUsn() != null) {
+                studentMap.put(s.getUsn().toUpperCase().trim(), s);
+            }
+        }
+
+        Map<String, Company> companyMap = new HashMap<>();
+        for (Company c : companies) {
+            if (c != null && c.getCompanyId() != null) {
+                companyMap.put(c.getCompanyId().toUpperCase().trim(), c);
+            }
+        }
+
+        Map<String, PlacementDrive> driveMap = new HashMap<>();
+        for (PlacementDrive d : drives) {
+            if (d != null && d.getDriveId() != null) {
+                driveMap.put(d.getDriveId().toUpperCase().trim(), d);
+                if (d.getCompany() != null && d.getCompany().getCompanyId() != null) {
+                    Company canonical = companyMap.get(d.getCompany().getCompanyId().toUpperCase().trim());
+                    if (canonical != null) {
+                        d.setCompany(canonical);
+                    }
+                }
+            }
+        }
+
+        Map<String, Application> appMap = new HashMap<>();
+        for (Application a : applications) {
+            if (a != null && a.getApplicationId() != null) {
+                appMap.put(a.getApplicationId().toUpperCase().trim(), a);
+                if (a.getStudent() != null && a.getStudent().getUsn() != null) {
+                    Student canonical = studentMap.get(a.getStudent().getUsn().toUpperCase().trim());
+                    if (canonical != null) {
+                        a.setStudent(canonical);
+                    }
+                }
+                if (a.getDrive() != null && a.getDrive().getDriveId() != null) {
+                    PlacementDrive canonical = driveMap.get(a.getDrive().getDriveId().toUpperCase().trim());
+                    if (canonical != null) {
+                        a.setDrive(canonical);
+                    }
+                }
+            }
+        }
+
+        for (PlacementDrive d : drives) {
+            List<Application> canonicalApplicants = new ArrayList<>();
+            for (Application a : d.getApplicants()) {
+                if (a != null && a.getApplicationId() != null) {
+                    Application canonical = appMap.get(a.getApplicationId().toUpperCase().trim());
+                    if (canonical != null) {
+                        canonicalApplicants.add(canonical);
+                    }
+                }
+            }
+            d.setApplicants(canonicalApplicants);
+        }
+
+        for (Interview inv : interviews) {
+            if (inv != null && inv.getApplication() != null && inv.getApplication().getApplicationId() != null) {
+                Application canonical = appMap.get(inv.getApplication().getApplicationId().toUpperCase().trim());
+                if (canonical != null) {
+                    inv.setApplication(canonical);
+                }
+            }
+        }
+    }
+
     private void seedDefaultOfficerIfEmpty() {
         if (officers.isEmpty()) {
             PlacementOfficer defaultAdmin = new PlacementOfficer(
@@ -72,7 +229,7 @@ public class DataManager {
                     "admin123"
             );
             officers.add(defaultAdmin);
-            saveOfficers();
+            saveAll();
         }
     }
 
@@ -84,7 +241,6 @@ public class DataManager {
             students.add(s1);
             students.add(s2);
             students.add(s3);
-            saveStudents();
 
             Company c1 = new Company("CMP101", "Infosys Limited", "Information Technology", "hr@infosys.com", "info123");
             c1.setApproved(true);
@@ -95,131 +251,167 @@ public class DataManager {
             companies.add(c1);
             companies.add(c2);
             companies.add(c3);
-            saveCompanies();
 
             PlacementDrive d1 = new PlacementDrive("DRV201", c1, "Systems Engineer", 4.5, 6.5, 1, "2026-11-15");
             PlacementDrive d2 = new PlacementDrive("DRV202", c2, "Associate Software Engineer", 18.0, 8.5, 0, "2026-11-20");
             drives.add(d1);
             drives.add(d2);
-            saveDrives();
 
             Application app1 = new Application("APP301", s1, d2);
             app1.updateStatus("Shortlisted");
             applications.add(app1);
             d2.getApplicants().add(app1);
-            saveApplications();
 
             Interview int1 = new Interview("INT401", app1, "Round 1 - Technical Coding", "Cleared", "2026-11-22 10:00 AM");
             interviews.add(int1);
-            saveInterviews();
+
+            saveAll();
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> List<T> readListFromFile(String filePath) {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            return new ArrayList<>();
-        }
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-            Object obj = ois.readObject();
-            if (obj instanceof List<?>) {
-                return (List<T>) obj;
-            }
-        } catch (EOFException e) {
-            return new ArrayList<>();
-        } catch (Exception e) {
-            System.err.println("Error reading " + filePath + ": " + e.getMessage());
-        }
-        return new ArrayList<>();
-    }
+    private void writeAtomicPlacementData(PlacementData data) {
+        File tempFile = new File(TEMP_DATA_FILE);
+        File destFile = new File(UNIFIED_DATA_FILE);
+        File backupFile = new File(BACKUP_DATA_FILE);
 
-    private <T> void writeListToFile(String filePath, List<T> list) {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filePath))) {
-            oos.writeObject(list);
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tempFile))) {
+            oos.writeObject(data);
             oos.flush();
         } catch (Exception e) {
-            System.err.println("Error writing to " + filePath + ": " + e.getMessage());
+            System.err.println("Error writing temp data file: " + e.getMessage());
+            return;
+        }
+
+        if (destFile.exists()) {
+            copyFile(destFile, backupFile);
+        }
+
+        if (!tempFile.renameTo(destFile)) {
+            copyFile(tempFile, destFile);
+            tempFile.delete();
         }
     }
 
-    public synchronized void loadAll() {
-        this.students = readListFromFile(STUDENTS_FILE);
-        this.companies = readListFromFile(COMPANIES_FILE);
-        this.drives = readListFromFile(DRIVES_FILE);
-        this.applications = readListFromFile(APPLICATIONS_FILE);
-        this.officers = readListFromFile(OFFICERS_FILE);
-        this.interviews = readListFromFile(INTERVIEWS_FILE);
-
-        seedDefaultOfficerIfEmpty();
-        seedSampleDataIfEmpty();
+    private void copyFile(File src, File dest) {
+        try (InputStream in = new FileInputStream(src);
+             OutputStream out = new FileOutputStream(dest)) {
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+        } catch (IOException ignored) {
+        }
     }
 
-    // Synchronous save for shutdown hook or explicit flushes
     public synchronized void saveAll() {
-        writeListToFile(STUDENTS_FILE, new ArrayList<>(students));
-        writeListToFile(COMPANIES_FILE, new ArrayList<>(companies));
-        writeListToFile(DRIVES_FILE, new ArrayList<>(drives));
-        writeListToFile(APPLICATIONS_FILE, new ArrayList<>(applications));
-        writeListToFile(OFFICERS_FILE, new ArrayList<>(officers));
-        writeListToFile(INTERVIEWS_FILE, new ArrayList<>(interviews));
+        PlacementData data = new PlacementData(
+                new ArrayList<>(students),
+                new ArrayList<>(companies),
+                new ArrayList<>(drives),
+                new ArrayList<>(applications),
+                new ArrayList<>(officers),
+                new ArrayList<>(interviews)
+        );
+        writeAtomicPlacementData(data);
     }
 
-    // Non-blocking save for UI thread operations to avoid freezing the EDT
     public void saveAllAsync() {
-        final List<Student> studentsCopy;
-        final List<Company> companiesCopy;
-        final List<PlacementDrive> drivesCopy;
-        final List<Application> applicationsCopy;
-        final List<PlacementOfficer> officersCopy;
-        final List<Interview> interviewsCopy;
-
+        final PlacementData dataCopy;
         synchronized (this) {
-            studentsCopy = new ArrayList<>(students);
-            companiesCopy = new ArrayList<>(companies);
-            drivesCopy = new ArrayList<>(drives);
-            applicationsCopy = new ArrayList<>(applications);
-            officersCopy = new ArrayList<>(officers);
-            interviewsCopy = new ArrayList<>(interviews);
+            dataCopy = new PlacementData(
+                    new ArrayList<>(students),
+                    new ArrayList<>(companies),
+                    new ArrayList<>(drives),
+                    new ArrayList<>(applications),
+                    new ArrayList<>(officers),
+                    new ArrayList<>(interviews)
+            );
         }
-
-        saveExecutor.submit(() -> {
-            writeListToFile(STUDENTS_FILE, studentsCopy);
-            writeListToFile(COMPANIES_FILE, companiesCopy);
-            writeListToFile(DRIVES_FILE, drivesCopy);
-            writeListToFile(APPLICATIONS_FILE, applicationsCopy);
-            writeListToFile(OFFICERS_FILE, officersCopy);
-            writeListToFile(INTERVIEWS_FILE, interviewsCopy);
-        });
+        saveExecutor.submit(() -> writeAtomicPlacementData(dataCopy));
     }
 
-    public synchronized void saveStudents() {
-        writeListToFile(STUDENTS_FILE, new ArrayList<>(students));
+    public void saveStudents() {
+        saveAllAsync();
     }
 
-    public synchronized void saveCompanies() {
-        writeListToFile(COMPANIES_FILE, new ArrayList<>(companies));
+    public void saveCompanies() {
+        saveAllAsync();
     }
 
-    public synchronized void saveDrives() {
-        writeListToFile(DRIVES_FILE, new ArrayList<>(drives));
+    public void saveDrives() {
+        saveAllAsync();
     }
 
-    public synchronized void saveApplications() {
-        writeListToFile(APPLICATIONS_FILE, new ArrayList<>(applications));
+    public void saveApplications() {
+        saveAllAsync();
     }
 
-    public synchronized void saveOfficers() {
-        writeListToFile(OFFICERS_FILE, new ArrayList<>(officers));
+    public void saveOfficers() {
+        saveAllAsync();
     }
 
-    public synchronized void saveInterviews() {
-        writeListToFile(INTERVIEWS_FILE, new ArrayList<>(interviews));
+    public void saveInterviews() {
+        saveAllAsync();
+    }
+
+    // Monotonic ID Generators
+    public synchronized String nextCompanyId() {
+        int maxId = 100;
+        for (Company c : companies) {
+            if (c != null && c.getCompanyId() != null && c.getCompanyId().toUpperCase().startsWith("CMP")) {
+                try {
+                    int val = Integer.parseInt(c.getCompanyId().substring(3).trim());
+                    if (val > maxId) maxId = val;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return "CMP" + (maxId + 1);
+    }
+
+    public synchronized String nextDriveId() {
+        int maxId = 200;
+        for (PlacementDrive d : drives) {
+            if (d != null && d.getDriveId() != null && d.getDriveId().toUpperCase().startsWith("DRV")) {
+                try {
+                    int val = Integer.parseInt(d.getDriveId().substring(3).trim());
+                    if (val > maxId) maxId = val;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return "DRV" + (maxId + 1);
+    }
+
+    public synchronized String nextApplicationId() {
+        int maxId = 300;
+        for (Application a : applications) {
+            if (a != null && a.getApplicationId() != null && a.getApplicationId().toUpperCase().startsWith("APP")) {
+                try {
+                    int val = Integer.parseInt(a.getApplicationId().substring(3).trim());
+                    if (val > maxId) maxId = val;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return "APP" + (maxId + 1);
+    }
+
+    public synchronized String nextInterviewId() {
+        int maxId = 400;
+        for (Interview inv : interviews) {
+            if (inv != null && inv.getInterviewId() != null && inv.getInterviewId().toUpperCase().startsWith("INT")) {
+                try {
+                    int val = Integer.parseInt(inv.getInterviewId().substring(3).trim());
+                    if (val > maxId) maxId = val;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        return "INT" + (maxId + 1);
     }
 
     public synchronized Student authenticateStudent(String email, String password) {
+        String normalized = Validator.normalizeEmail(email);
         for (Student s : students) {
-            if (s.getEmail().equalsIgnoreCase(email.trim()) && s.checkPassword(password)) {
+            if (Validator.normalizeEmail(s.getEmail()).equalsIgnoreCase(normalized) && s.checkPassword(password)) {
                 return s;
             }
         }
@@ -227,8 +419,9 @@ public class DataManager {
     }
 
     public synchronized Company authenticateCompany(String email, String password) {
+        String normalized = Validator.normalizeEmail(email);
         for (Company c : companies) {
-            if (c.getEmail().equalsIgnoreCase(email.trim()) && c.checkPassword(password)) {
+            if (Validator.normalizeEmail(c.getEmail()).equalsIgnoreCase(normalized) && c.checkPassword(password)) {
                 return c;
             }
         }
@@ -236,8 +429,9 @@ public class DataManager {
     }
 
     public synchronized PlacementOfficer authenticateOfficer(String email, String password) {
+        String normalized = Validator.normalizeEmail(email);
         for (PlacementOfficer po : officers) {
-            if (po.getEmail().equalsIgnoreCase(email.trim()) && po.checkPassword(password)) {
+            if (Validator.normalizeEmail(po.getEmail()).equalsIgnoreCase(normalized) && po.checkPassword(password)) {
                 return po;
             }
         }
@@ -249,11 +443,30 @@ public class DataManager {
     }
 
     public synchronized void addStudent(Student s) {
+        if (s == null) {
+            throw new IllegalArgumentException("Student cannot be null.");
+        }
+        String normalizedEmail = Validator.normalizeEmail(s.getEmail());
+        String normalizedUsn = s.getUsn() != null ? s.getUsn().trim() : "";
+
+        if (!Validator.isValidEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("Invalid email format.");
+        }
+        if (!Validator.isValidUsn(normalizedUsn)) {
+            throw new IllegalArgumentException("Invalid USN format.");
+        }
+
         for (Student existing : students) {
-            if (existing.getEmail().equalsIgnoreCase(s.getEmail()) || existing.getUsn().equalsIgnoreCase(s.getUsn())) {
-                throw new IllegalArgumentException("Student with this USN or Email already exists.");
+            if (Validator.normalizeEmail(existing.getEmail()).equalsIgnoreCase(normalizedEmail)) {
+                throw new IllegalArgumentException("Student with this email address already exists.");
+            }
+            if (existing.getUsn() != null && existing.getUsn().equalsIgnoreCase(normalizedUsn)) {
+                throw new IllegalArgumentException("Student with this USN already exists.");
             }
         }
+
+        s.setEmail(normalizedEmail);
+        s.setUsn(normalizedUsn);
         students.add(s);
         saveStudents();
     }
@@ -273,11 +486,26 @@ public class DataManager {
     }
 
     public synchronized void addCompany(Company c) {
+        if (c == null) {
+            throw new IllegalArgumentException("Company cannot be null.");
+        }
+        String normalizedEmail = Validator.normalizeEmail(c.getEmail());
+        String normalizedId = c.getCompanyId() != null ? c.getCompanyId().trim() : "";
+
+        if (!Validator.isValidEmail(normalizedEmail)) {
+            throw new IllegalArgumentException("Invalid company email format.");
+        }
+
         for (Company existing : companies) {
-            if (existing.getEmail().equalsIgnoreCase(c.getEmail()) || existing.getCompanyId().equalsIgnoreCase(c.getCompanyId())) {
-                throw new IllegalArgumentException("Company with this ID or Email already exists.");
+            if (Validator.normalizeEmail(existing.getEmail()).equalsIgnoreCase(normalizedEmail)) {
+                throw new IllegalArgumentException("Company with this email address already exists.");
+            }
+            if (existing.getCompanyId() != null && existing.getCompanyId().equalsIgnoreCase(normalizedId)) {
+                throw new IllegalArgumentException("Company with this ID already exists.");
             }
         }
+
+        c.setEmail(normalizedEmail);
         companies.add(c);
         saveCompanies();
     }
@@ -295,7 +523,7 @@ public class DataManager {
     public synchronized List<Company> getPendingCompanies() {
         List<Company> pending = new ArrayList<>();
         for (Company c : companies) {
-            if (!c.isApproved()) {
+            if (!c.isApproved() && !c.isRejected()) {
                 pending.add(c);
             }
         }
@@ -310,6 +538,16 @@ public class DataManager {
             }
         }
         return approved;
+    }
+
+    public synchronized List<Company> getRejectedCompanies() {
+        List<Company> rejected = new ArrayList<>();
+        for (Company c : companies) {
+            if (c.isRejected()) {
+                rejected.add(c);
+            }
+        }
+        return rejected;
     }
 
     public synchronized List<PlacementDrive> getDrives() {
@@ -371,37 +609,76 @@ public class DataManager {
         return list;
     }
 
-    // Applies student to drive, verifying eligibility and checking for existing applications
+    /**
+     * Finds any active job offer for the student.
+     */
+    public synchronized Application getActiveOfferForStudent(Student student) {
+        if (student == null) return null;
+        for (Application a : applications) {
+            if (a.getStudent() != null && a.getStudent().getUsn().equalsIgnoreCase(student.getUsn())
+                    && "Selected".equalsIgnoreCase(a.getStatus())) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Applies student to a drive. Enforces:
+     * 1. Drive deadline check.
+     * 2. Eligibility criteria (CGPA and backlogs).
+     * 3. Single offer / dream drive policy.
+     * 4. Duplicate application check.
+     */
     public synchronized void applyToDrive(Student student, PlacementDrive drive)
             throws IneligibleStudentException, DuplicateApplicationException {
         if (student == null || drive == null) {
             throw new IllegalArgumentException("Student and Drive must not be null.");
         }
 
-        // 1. Eligibility Check
+        // 1. Deadline Check
+        if (drive.isDeadlinePassed()) {
+            throw new IneligibleStudentException("Application deadline for this drive (" + drive.getDriveDate() + ") has already passed.");
+        }
+
+        // 2. Eligibility Check
         if (!drive.checkEligibility(student)) {
             throw new IneligibleStudentException(
-                    "Eligibility criteria not met. Drive requires minimum CGPA of " 
-                    + drive.getEligibleCGPA() + " and max " + drive.getMaxBacklogsAllowed() 
-                    + " backlogs. Student has CGPA: " + student.getCgpa() 
-                    + " and " + student.getBacklogs() + " backlogs."
+                    "Eligibility criteria not met. Drive requires minimum CGPA of "
+                            + drive.getEligibleCGPA() + " and max " + drive.getMaxBacklogsAllowed()
+                            + " backlogs. Student has CGPA: " + student.getCgpa()
+                            + " and " + student.getBacklogs() + " backlogs."
             );
         }
 
-        // 2. Duplicate Application Check
+        // 3. KTU Placement Policy: Single offer lock / Dream drive rule
+        Application activeOffer = getActiveOfferForStudent(student);
+        if (activeOffer != null && activeOffer.getDrive() != null) {
+            double currentPackage = activeOffer.getDrive().getPackageOffered();
+            if (drive.getPackageOffered() <= currentPackage) {
+                throw new IneligibleStudentException(
+                        "Placement Policy: You have already been selected for an offer ("
+                                + activeOffer.getDrive().getRole() + " at "
+                                + activeOffer.getDrive().getCompany().getCompanyName()
+                                + " with " + currentPackage + " LPA). You can only apply to dream drives with a higher package."
+                );
+            }
+        }
+
+        // 4. Duplicate Application Check
         for (Application existing : applications) {
             if (existing.getStudent() != null && existing.getDrive() != null
                     && existing.getStudent().getUsn().equalsIgnoreCase(student.getUsn())
                     && existing.getDrive().getDriveId().equalsIgnoreCase(drive.getDriveId())) {
                 throw new DuplicateApplicationException(
-                        "You have already applied for " + drive.getRole() + " at " 
-                        + drive.getCompany().getCompanyName() + "."
+                        "You have already applied for " + drive.getRole() + " at "
+                                + drive.getCompany().getCompanyName() + "."
                 );
             }
         }
 
-        // 3. Create Application
-        String appId = "APP" + (applications.size() + 101);
+        // 5. Create Application
+        String appId = nextApplicationId();
         Application newApp = new Application(appId, student, drive);
         applications.add(newApp);
         drive.getApplicants().add(newApp);
@@ -414,7 +691,28 @@ public class DataManager {
         saveDrives();
     }
 
-    // Update status and record changes
+    public synchronized void withdrawApplication(Student student, Application app) {
+        if (student == null || app == null) {
+            throw new IllegalArgumentException("Student and Application cannot be null.");
+        }
+        if (!"Applied".equalsIgnoreCase(app.getStatus())) {
+            throw new IllegalStateException("Only applications in 'Applied' status can be withdrawn.");
+        }
+
+        applications.removeIf(a -> a.getApplicationId().equalsIgnoreCase(app.getApplicationId()));
+        if (app.getDrive() != null) {
+            app.getDrive().getApplicants().removeIf(a -> a.getApplicationId().equalsIgnoreCase(app.getApplicationId()));
+            if (app.getDrive().getCompany() != null) {
+                app.getDrive().getCompany().sendNotification(
+                        "Candidate " + student.getName() + " has withdrawn their application for " + app.getDrive().getRole()
+                );
+            }
+        }
+
+        saveApplications();
+        saveDrives();
+    }
+
     public synchronized void updateApplicationStatus(Application app, String newStatus) {
         app.updateStatus(newStatus);
         for (int i = 0; i < applications.size(); i++) {
@@ -432,9 +730,27 @@ public class DataManager {
     }
 
     public synchronized void addInterview(Interview interview) {
+        if (interview == null || interview.getApplication() == null) {
+            throw new IllegalArgumentException("Interview and Application cannot be null.");
+        }
+
+        if ("Rejected".equalsIgnoreCase(interview.getApplication().getStatus())) {
+            throw new IllegalStateException("Cannot schedule an interview for a rejected candidate.");
+        }
+
+        // Check for duplicate round name for the same application
+        for (Interview existing : interviews) {
+            if (existing.getApplication() != null
+                    && existing.getApplication().getApplicationId().equalsIgnoreCase(interview.getApplication().getApplicationId())
+                    && existing.getRoundName().equalsIgnoreCase(interview.getRoundName().trim())) {
+                throw new IllegalArgumentException("An interview round with name '" + interview.getRoundName() + "' is already scheduled for this application.");
+            }
+        }
+
         interviews.add(interview);
         saveInterviews();
-        if (interview.getApplication() != null && interview.getApplication().getStudent() != null) {
+
+        if (interview.getApplication().getStudent() != null) {
             interview.getApplication().getStudent().sendNotification(
                     "Interview Scheduled: " + interview.getRoundName() + " on " + interview.getInterviewDate()
             );
@@ -460,14 +776,17 @@ public class DataManager {
         return students.size();
     }
 
+    /**
+     * Returns the distinct count of placed students.
+     */
     public synchronized int getPlacedStudentsCount() {
-        int count = 0;
+        Set<String> placedUsns = new HashSet<>();
         for (Application a : applications) {
-            if ("Selected".equalsIgnoreCase(a.getStatus())) {
-                count++;
+            if ("Selected".equalsIgnoreCase(a.getStatus()) && a.getStudent() != null && a.getStudent().getUsn() != null) {
+                placedUsns.add(a.getStudent().getUsn().toUpperCase().trim());
             }
         }
-        return count;
+        return placedUsns.size();
     }
 
     public synchronized int getTotalCompaniesCount() {
@@ -493,6 +812,18 @@ public class DataManager {
             sum += s.getCgpa();
         }
         return Math.round((sum / students.size()) * 100.0) / 100.0;
+    }
+
+    public synchronized void resetForTesting() {
+        this.students.clear();
+        this.companies.clear();
+        this.drives.clear();
+        this.applications.clear();
+        this.officers.clear();
+        this.interviews.clear();
+        seedDefaultOfficerIfEmpty();
+        seedSampleDataIfEmpty();
+        saveAll();
     }
 
     public void shutdown() {

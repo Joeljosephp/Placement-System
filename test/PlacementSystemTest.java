@@ -102,6 +102,7 @@ public class PlacementSystemTest {
         System.out.println("\nTesting DataManager.applyToDrive exceptions:");
 
         DataManager dm = DataManager.getInstance();
+        dm.resetForTesting();
 
         Company company = new Company("TEST_CMP_EX", "Exception Tech", "IT", "hr@exception.com", "pass123");
         company.setApproved(true);

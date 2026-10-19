@@ -16,10 +16,12 @@ public class Company implements Notifiable, Serializable {
     private String passwordHash;
     private String salt;
     private boolean isApproved;
+    private String rejectionReason;
     private List<String> notifications;
 
     public Company() {
         this.isApproved = false;
+        this.rejectionReason = null;
         this.notifications = new ArrayList<>();
     }
 
@@ -104,6 +106,21 @@ public class Company implements Notifiable, Serializable {
 
     public void setApproved(boolean isApproved) {
         this.isApproved = isApproved;
+        if (isApproved) {
+            this.rejectionReason = null;
+        }
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
+    public boolean isRejected() {
+        return !isApproved && rejectionReason != null && !rejectionReason.trim().isEmpty();
     }
 
     public List<String> getNotifications() {

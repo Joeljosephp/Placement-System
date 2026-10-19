@@ -73,6 +73,14 @@ public class PlacementOfficer extends Person {
         }
     }
 
+    public void rejectCompany(Company c, String reason) {
+        if (c != null) {
+            c.setApproved(false);
+            c.setRejectionReason(reason);
+            c.sendNotification("Your company registration was rejected by " + getName() + " (" + designation + "). Reason: " + reason);
+        }
+    }
+
     @Override
     public void displayDetails() {
         System.out.println("Officer: " + name + " (" + officerId + "), " + designation);

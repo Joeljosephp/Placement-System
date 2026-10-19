@@ -74,8 +74,25 @@ public class Application implements Serializable {
         this.appliedDate = appliedDate;
     }
 
+    public static boolean isValidTransition(String currentStatus, String targetStatus) {
+        if (currentStatus == null || targetStatus == null) return false;
+        if (currentStatus.equalsIgnoreCase(targetStatus)) return true;
+
+        if ("Applied".equalsIgnoreCase(currentStatus)) {
+            return "Shortlisted".equalsIgnoreCase(targetStatus) || "Rejected".equalsIgnoreCase(targetStatus);
+        } else if ("Shortlisted".equalsIgnoreCase(currentStatus)) {
+            return "Selected".equalsIgnoreCase(targetStatus) || "Rejected".equalsIgnoreCase(targetStatus);
+        }
+        // "Rejected" is a terminal state
+        // "Selected" is a terminal state
+        return false;
+    }
+
     // Updates application status and notifies the applicant
     public void updateStatus(String newStatus) {
+        if (!isValidTransition(this.status, newStatus)) {
+            throw new IllegalStateException("Invalid status transition from '" + this.status + "' to '" + newStatus + "'");
+        }
         this.status = newStatus;
         if (student != null) {
             String companyName = (drive != null && drive.getCompany() != null) 

@@ -24,11 +24,11 @@ public class PlacementDrive implements Serializable {
     public PlacementDrive(String driveId, Company company, String role, double packageOffered, double eligibleCGPA, int maxBacklogsAllowed, String driveDate) {
         this.driveId = driveId;
         this.company = company;
-        this.role = role;
-        this.packageOffered = packageOffered;
-        this.eligibleCGPA = eligibleCGPA;
-        this.maxBacklogsAllowed = maxBacklogsAllowed;
-        this.driveDate = driveDate;
+        this.role = role != null ? role.trim() : "";
+        setPackageOffered(packageOffered);
+        setEligibleCGPA(eligibleCGPA);
+        setMaxBacklogsAllowed(maxBacklogsAllowed);
+        setDriveDate(driveDate);
         this.venue = "Campus Auditorium / Online";
         this.applicants = new ArrayList<>();
     }
@@ -62,6 +62,9 @@ public class PlacementDrive implements Serializable {
     }
 
     public void setPackageOffered(double packageOffered) {
+        if (packageOffered < 0.5 || packageOffered > 150.0) {
+            throw new IllegalArgumentException("Package must be between 0.5 and 150.0 LPA");
+        }
         this.packageOffered = packageOffered;
     }
 
@@ -70,6 +73,9 @@ public class PlacementDrive implements Serializable {
     }
 
     public void setEligibleCGPA(double eligibleCGPA) {
+        if (eligibleCGPA < 0.0 || eligibleCGPA > 10.0) {
+            throw new IllegalArgumentException("Eligible CGPA must be between 0.0 and 10.0");
+        }
         this.eligibleCGPA = eligibleCGPA;
     }
 
@@ -78,6 +84,9 @@ public class PlacementDrive implements Serializable {
     }
 
     public void setMaxBacklogsAllowed(int maxBacklogsAllowed) {
+        if (maxBacklogsAllowed < 0 || maxBacklogsAllowed > 50) {
+            throw new IllegalArgumentException("Max backlogs must be between 0 and 50");
+        }
         this.maxBacklogsAllowed = maxBacklogsAllowed;
     }
 
@@ -86,7 +95,24 @@ public class PlacementDrive implements Serializable {
     }
 
     public void setDriveDate(String driveDate) {
-        this.driveDate = driveDate;
+        if (driveDate != null && !driveDate.trim().isEmpty()) {
+            try {
+                java.time.LocalDate.parse(driveDate.trim(), java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid date format. Expected YYYY-MM-DD");
+            }
+        }
+        this.driveDate = driveDate != null ? driveDate.trim() : "";
+    }
+
+    public boolean isDeadlinePassed() {
+        if (driveDate == null || driveDate.trim().isEmpty()) return false;
+        try {
+            java.time.LocalDate date = java.time.LocalDate.parse(driveDate.trim(), java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
+            return date.isBefore(java.time.LocalDate.now());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public String getVenue() {
