@@ -10,15 +10,9 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 
-/**
- * Top-level application window and navigation controller.
- * Configured at 1200x800, centered, managing CardLayout switching between all 5 panels.
- * Demonstrates CardLayout, Event Dispatch Thread handling, and Controller patterns.
- */
 public class MainFrame extends JFrame {
     private static final long serialVersionUID = 1L;
 
-    // Card Names
     public static final String CARD_LOGIN = "LOGIN";
     public static final String CARD_STUDENT = "STUDENT_PROFILE";
     public static final String CARD_COMPANY = "COMPANY_DASHBOARD";
@@ -28,45 +22,46 @@ public class MainFrame extends JFrame {
     private CardLayout cardLayout;
     private JPanel cardsPanel;
 
-    // Sub-panels
     private LoginPanel loginPanel;
     private StudentProfilePanel studentProfilePanel;
     private CompanyDashboard companyDashboard;
     private AdminDashboard adminDashboard;
     private ApplicationTrackingPanel trackingPanel;
 
-    // Header Components
-    private JPanel headerPanel;
     private JLabel userStatusLabel;
     private JButton navPrimaryButton;
     private JButton navTrackingButton;
     private JButton logoutButton;
 
-    // Current Session State
     private String currentRole = null;
     private Object currentUser = null;
+    private final boolean showDemoHints;
 
     public MainFrame() {
-        super("Placement Management System - KTU S3 CS OOP Mini Project");
+        this(false);
+    }
+
+    public MainFrame(boolean showDemoHints) {
+        super("Placement Management System");
+        this.showDemoHints = showDemoHints;
         initUI();
     }
 
     private void initUI() {
         setSize(1200, 800);
         setMinimumSize(new Dimension(1000, 680));
-        setLocationRelativeTo(null); // Center on screen
+        setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // 1. Top Navigation Header
         headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
 
-        // 2. CardLayout Central Container
         cardLayout = new CardLayout();
         cardsPanel = new JPanel(cardLayout);
+        cardsPanel.setBackground(Theme.COLOR_BG);
 
-        loginPanel = new LoginPanel(this);
+        loginPanel = new LoginPanel(this, showDemoHints);
         studentProfilePanel = new StudentProfilePanel(this);
         companyDashboard = new CompanyDashboard(this);
         adminDashboard = new AdminDashboard(this);
@@ -80,41 +75,38 @@ public class MainFrame extends JFrame {
 
         add(cardsPanel, BorderLayout.CENTER);
 
-        // Start on Login Card
         showCard(CARD_LOGIN);
         updateHeaderForSession(null, null);
     }
 
+    private JPanel headerPanel;
+
     private JPanel createHeaderPanel() {
         JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(new Color(24, 43, 73));
-        header.setBorder(new EmptyBorder(12, 20, 12, 20));
+        header.setBackground(Theme.COLOR_PRIMARY);
+        header.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_MEDIUM, Theme.SPACING_SMALL, Theme.SPACING_MEDIUM));
 
-        // Left Branding
-        JLabel brandLabel = new JLabel("🎓 Placement Management System");
-        brandLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        JLabel brandLabel = new JLabel("Placement Management System");
+        brandLabel.setFont(Theme.FONT_TITLE);
         brandLabel.setForeground(Color.WHITE);
         header.add(brandLabel, BorderLayout.WEST);
 
-        // Right Navigation & User Controls
-        JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        JPanel rightControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         rightControls.setOpaque(false);
 
-        userStatusLabel = new JLabel("Not Logged In");
-        userStatusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        userStatusLabel.setForeground(new Color(200, 220, 245));
+        userStatusLabel = new JLabel("");
+        userStatusLabel.setFont(Theme.FONT_BODY);
+        userStatusLabel.setForeground(Color.WHITE);
         rightControls.add(userStatusLabel);
 
         navPrimaryButton = new JButton("Home");
-        navPrimaryButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        navPrimaryButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Theme.styleSecondaryButton(navPrimaryButton);
         navPrimaryButton.addActionListener(e -> navigateToPrimaryPortal());
         navPrimaryButton.setVisible(false);
         rightControls.add(navPrimaryButton);
 
         navTrackingButton = new JButton("Pipeline Tracker");
-        navTrackingButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        navTrackingButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Theme.styleSecondaryButton(navTrackingButton);
         navTrackingButton.addActionListener(e -> {
             trackingPanel.refreshData();
             showCard(CARD_TRACKING);
@@ -123,11 +115,7 @@ public class MainFrame extends JFrame {
         rightControls.add(navTrackingButton);
 
         logoutButton = new JButton("Logout");
-        logoutButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        logoutButton.setBackground(new Color(220, 53, 69));
-        logoutButton.setForeground(Color.WHITE);
-        logoutButton.setFocusPainted(false);
-        logoutButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Theme.styleSecondaryButton(logoutButton);
         logoutButton.addActionListener(e -> logout());
         logoutButton.setVisible(false);
         rightControls.add(logoutButton);
@@ -149,7 +137,7 @@ public class MainFrame extends JFrame {
         if ("Student".equals(role)) {
             Student s = (Student) userObject;
             studentProfilePanel.setCurrentStudent(s);
-            navPrimaryButton.setText("My Profile & Drives");
+            navPrimaryButton.setText("Profile and Drives");
             showCard(CARD_STUDENT);
         } else if ("Company".equals(role)) {
             Company c = (Company) userObject;
@@ -169,23 +157,37 @@ public class MainFrame extends JFrame {
     }
 
     public void logout() {
-        int confirm = JOptionPane.showConfirmDialog(this, 
-                "Are you sure you want to log out of the Placement Management System?", 
-                "Confirm Logout", 
-                JOptionPane.YES_NO_OPTION);
-
-        if (confirm == JOptionPane.YES_OPTION) {
-            // Autosave latest data
-            DataManager.getInstance().saveAll();
-
-            this.currentRole = null;
-            this.currentUser = null;
-
-            updateHeaderForSession(null, null);
-            showCard(CARD_LOGIN);
-
-            JOptionPane.showMessageDialog(this, "You have been logged out safely.", "Logged Out", JOptionPane.INFORMATION_MESSAGE);
+        if ("Student".equals(currentRole) && studentProfilePanel != null && studentProfilePanel.hasUnsavedChanges()) {
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "You have unsaved changes in your profile. Are you sure you want to log out without saving?",
+                    "Confirm Logout",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+        } else {
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Are you sure you want to log out?",
+                    "Confirm Logout",
+                    JOptionPane.YES_NO_OPTION
+            );
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
         }
+
+        // Asynchronous non-blocking save on logout
+        DataManager.getInstance().saveAllAsync();
+
+        this.currentRole = null;
+        this.currentUser = null;
+
+        updateHeaderForSession(null, null);
+        showCard(CARD_LOGIN);
     }
 
     private void navigateToPrimaryPortal() {
@@ -203,7 +205,7 @@ public class MainFrame extends JFrame {
 
     private void updateHeaderForSession(String role, Object userObject) {
         if (role == null || userObject == null) {
-            userStatusLabel.setText("Please Log In");
+            userStatusLabel.setText("");
             navPrimaryButton.setVisible(false);
             navTrackingButton.setVisible(false);
             logoutButton.setVisible(false);
@@ -211,13 +213,13 @@ public class MainFrame extends JFrame {
             String displayName = "";
             if (userObject instanceof Student) {
                 Student s = (Student) userObject;
-                displayName = "👤 " + s.getName() + " [Student - " + s.getUsn() + "]";
+                displayName = s.getName() + " (Student)";
             } else if (userObject instanceof Company) {
                 Company c = (Company) userObject;
-                displayName = "🏢 " + c.getCompanyName() + " [Company]";
+                displayName = c.getCompanyName() + " (Company)";
             } else if (userObject instanceof PlacementOfficer) {
                 PlacementOfficer po = (PlacementOfficer) userObject;
-                displayName = "⭐ " + po.getName() + " [Officer]";
+                displayName = po.getName() + " (Placement Officer)";
             }
             userStatusLabel.setText(displayName);
         }

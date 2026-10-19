@@ -8,165 +8,184 @@ import com.placementsystem.util.DataManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 
-/**
- * Authentication & Registration panel.
- * Demonstrates GUI Form Handling, Event Listeners, and DataManager integration.
- */
 public class LoginPanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
-    private MainFrame mainFrame;
+    private final MainFrame mainFrame;
+    private final boolean showDemoHints;
+
     private JComboBox<String> roleComboBox;
     private JTextField emailField;
     private JPasswordField passwordField;
+    private JLabel emailErrorLabel;
+    private JLabel passwordErrorLabel;
+
     private JButton loginButton;
     private JButton registerStudentButton;
     private JButton registerCompanyButton;
 
     public LoginPanel(MainFrame mainFrame) {
+        this(mainFrame, false);
+    }
+
+    public LoginPanel(MainFrame mainFrame, boolean showDemoHints) {
         this.mainFrame = mainFrame;
+        this.showDemoHints = showDemoHints;
         setLayout(new GridBagLayout());
-        setBackground(new Color(245, 247, 250));
+        setBackground(Theme.COLOR_BG);
         initComponents();
     }
 
     private void initComponents() {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
         JPanel card = new JPanel(new GridBagLayout());
-        card.setBackground(Color.WHITE);
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 215, 225), 1),
-                new EmptyBorder(30, 40, 30, 40)
-        ));
+        card.setBackground(Theme.COLOR_SURFACE);
+        card.setBorder(Theme.createCardBorder());
 
-        GridBagConstraints cGbc = new GridBagConstraints();
-        cGbc.insets = new Insets(8, 8, 8, 8);
-        cGbc.fill = GridBagConstraints.HORIZONTAL;
-        cGbc.gridx = 0;
-        cGbc.gridy = 0;
-        cGbc.gridwidth = 2;
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
 
-        // Title
         JLabel titleLabel = new JLabel("Placement Management System", SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        titleLabel.setForeground(new Color(24, 43, 73));
-        card.add(titleLabel, cGbc);
+        titleLabel.setFont(Theme.FONT_TITLE);
+        titleLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        card.add(titleLabel, gbc);
 
-        cGbc.gridy++;
-        JLabel subtitleLabel = new JLabel("Login to Access Your Portal", SwingConstants.CENTER);
-        subtitleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subtitleLabel.setForeground(Color.GRAY);
-        card.add(subtitleLabel, cGbc);
+        gbc.gridwidth = 1;
 
-        cGbc.gridwidth = 1;
+        // Role selection
+        gbc.gridy++;
+        gbc.gridx = 0;
+        JLabel roleLabel = new JLabel("Role:");
+        roleLabel.setFont(Theme.FONT_BODY_BOLD);
+        roleLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        card.add(roleLabel, gbc);
 
-        // Role
-        cGbc.gridy++;
-        cGbc.gridx = 0;
-        JLabel roleLabel = new JLabel("Select Role:");
-        roleLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        card.add(roleLabel, cGbc);
-
-        cGbc.gridx = 1;
+        gbc.gridx = 1;
         String[] roles = {"Student", "Company", "Placement Officer"};
         roleComboBox = new JComboBox<>(roles);
-        roleComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        card.add(roleComboBox, cGbc);
+        roleComboBox.setFont(Theme.FONT_BODY);
+        card.add(roleComboBox, gbc);
 
         // Email
-        cGbc.gridy++;
-        cGbc.gridx = 0;
-        JLabel emailLabel = new JLabel("Email Address:");
-        emailLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        card.add(emailLabel, cGbc);
+        gbc.gridy++;
+        gbc.gridx = 0;
+        JLabel emailLabel = new JLabel("Email:");
+        emailLabel.setFont(Theme.FONT_BODY_BOLD);
+        emailLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        card.add(emailLabel, gbc);
 
-        cGbc.gridx = 1;
+        gbc.gridx = 1;
         emailField = new JTextField(20);
-        emailField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        card.add(emailField, cGbc);
+        emailField.setFont(Theme.FONT_BODY);
+        card.add(emailField, gbc);
+
+        // Email error inline
+        gbc.gridy++;
+        gbc.gridx = 1;
+        emailErrorLabel = Theme.createInlineValidationLabel();
+        card.add(emailErrorLabel, gbc);
 
         // Password
-        cGbc.gridy++;
-        cGbc.gridx = 0;
+        gbc.gridy++;
+        gbc.gridx = 0;
         JLabel passLabel = new JLabel("Password:");
-        passLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        card.add(passLabel, cGbc);
+        passLabel.setFont(Theme.FONT_BODY_BOLD);
+        passLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        card.add(passLabel, gbc);
 
-        cGbc.gridx = 1;
+        gbc.gridx = 1;
         passwordField = new JPasswordField(20);
-        passwordField.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        card.add(passwordField, cGbc);
+        passwordField.setFont(Theme.FONT_BODY);
+        card.add(passwordField, gbc);
 
-        // Login Button
-        cGbc.gridy++;
-        cGbc.gridx = 0;
-        cGbc.gridwidth = 2;
+        // Password error inline
+        gbc.gridy++;
+        gbc.gridx = 1;
+        passwordErrorLabel = Theme.createInlineValidationLabel();
+        card.add(passwordErrorLabel, gbc);
+
+        // Login Button (single primary button on screen)
+        gbc.gridy++;
+        gbc.gridx = 0;
+        gbc.gridwidth = 2;
         loginButton = new JButton("Login");
-        loginButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        loginButton.setBackground(new Color(30, 100, 200));
-        loginButton.setForeground(Color.WHITE);
-        loginButton.setFocusPainted(false);
-        loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Theme.stylePrimaryButton(loginButton);
         loginButton.addActionListener(this::handleLogin);
-        card.add(loginButton, cGbc);
+        card.add(loginButton, gbc);
 
-        // Divider & Registration
-        cGbc.gridy++;
-        JSeparator sep = new JSeparator();
-        card.add(sep, cGbc);
-
-        cGbc.gridy++;
-        JPanel regPanel = new JPanel(new GridLayout(1, 2, 10, 0));
+        // Registration buttons (secondary actions)
+        gbc.gridy++;
+        JPanel regPanel = new JPanel(new GridLayout(1, 2, Theme.SPACING_SMALL, 0));
         regPanel.setOpaque(false);
 
-        registerStudentButton = new JButton("Register as Student");
-        registerStudentButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        registerStudentButton = new JButton("Register Student");
+        Theme.styleSecondaryButton(registerStudentButton);
         registerStudentButton.addActionListener(e -> showStudentRegistrationDialog());
         regPanel.add(registerStudentButton);
 
         registerCompanyButton = new JButton("Register Company");
-        registerCompanyButton.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        Theme.styleSecondaryButton(registerCompanyButton);
         registerCompanyButton.addActionListener(e -> showCompanyRegistrationDialog());
         regPanel.add(registerCompanyButton);
 
-        card.add(regPanel, cGbc);
+        card.add(regPanel, gbc);
 
-        // Demo credentials helper
-        cGbc.gridy++;
-        JPanel demoBox = new JPanel(new GridLayout(3, 1, 3, 3));
-        demoBox.setBorder(new TitledBorder("Demo Accounts"));
-        demoBox.setBackground(new Color(248, 250, 252));
-        JLabel adminHint = new JLabel("• Officer: admin@ktu.edu / admin123");
-        adminHint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        JLabel studentHint = new JLabel("• Student: arun@ktu.edu / arun123");
-        studentHint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        JLabel companyHint = new JLabel("• Company: hr@infosys.com / info123");
-        companyHint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        demoBox.add(adminHint);
-        demoBox.add(studentHint);
-        demoBox.add(companyHint);
-        card.add(demoBox, cGbc);
+        // Optional demo credentials box via --demo flag only
+        if (showDemoHints) {
+            gbc.gridy++;
+            JPanel demoBox = new JPanel(new GridLayout(3, 1, 2, 2));
+            demoBox.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(Theme.COLOR_BORDER, 1),
+                    new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL)
+            ));
+            demoBox.setBackground(Theme.COLOR_SUBTLE_BG);
+            JLabel officerHint = new JLabel("Officer: admin@ktu.edu / admin123");
+            officerHint.setFont(Theme.FONT_SMALL);
+            officerHint.setForeground(Theme.COLOR_TEXT_MUTED);
+            JLabel studentHint = new JLabel("Student: arun@ktu.edu / arun123");
+            studentHint.setFont(Theme.FONT_SMALL);
+            studentHint.setForeground(Theme.COLOR_TEXT_MUTED);
+            JLabel companyHint = new JLabel("Company: hr@infosys.com / info123");
+            companyHint.setFont(Theme.FONT_SMALL);
+            companyHint.setForeground(Theme.COLOR_TEXT_MUTED);
+            demoBox.add(officerHint);
+            demoBox.add(studentHint);
+            demoBox.add(companyHint);
+            card.add(demoBox, gbc);
+        }
 
-        add(card, gbc);
+        GridBagConstraints outerGbc = new GridBagConstraints();
+        add(card, outerGbc);
+    }
+
+    private void clearErrors() {
+        emailErrorLabel.setText(" ");
+        passwordErrorLabel.setText(" ");
     }
 
     private void handleLogin(ActionEvent e) {
+        clearErrors();
+
         String role = (String) roleComboBox.getSelectedItem();
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword()).trim();
 
-        if (email.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, 
-                    "Please enter both Email and Password.", 
-                    "Validation Error", 
-                    JOptionPane.WARNING_MESSAGE);
+        boolean hasError = false;
+        if (email.isEmpty()) {
+            emailErrorLabel.setText("Email is required.");
+            hasError = true;
+        }
+        if (password.isEmpty()) {
+            passwordErrorLabel.setText("Password is required.");
+            hasError = true;
+        }
+        if (hasError) {
             return;
         }
 
@@ -178,7 +197,7 @@ public class LoginPanel extends JPanel {
                 clearFields();
                 mainFrame.loginUser("Student", student);
             } else {
-                showAuthError("Student account not found with provided credentials.");
+                passwordErrorLabel.setText("Invalid student credentials.");
             }
         } else if ("Company".equals(role)) {
             Company company = dm.authenticateCompany(email, password);
@@ -186,7 +205,7 @@ public class LoginPanel extends JPanel {
                 clearFields();
                 mainFrame.loginUser("Company", company);
             } else {
-                showAuthError("Company account not found with provided credentials.");
+                passwordErrorLabel.setText("Invalid company credentials.");
             }
         } else if ("Placement Officer".equals(role)) {
             PlacementOfficer officer = dm.authenticateOfficer(email, password);
@@ -194,28 +213,26 @@ public class LoginPanel extends JPanel {
                 clearFields();
                 mainFrame.loginUser("Placement Officer", officer);
             } else {
-                showAuthError("Placement Officer account not found or invalid password.");
+                passwordErrorLabel.setText("Invalid officer credentials.");
             }
         }
-    }
-
-    private void showAuthError(String msg) {
-        JOptionPane.showMessageDialog(this, msg, "Authentication Failed", JOptionPane.ERROR_MESSAGE);
     }
 
     private void clearFields() {
         emailField.setText("");
         passwordField.setText("");
+        clearErrors();
     }
 
     private void showStudentRegistrationDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Student Registration", true);
         dialog.setLayout(new GridBagLayout());
-        dialog.setSize(420, 480);
+        dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
+        dialog.setSize(440, 520);
         dialog.setLocationRelativeTo(this);
 
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(6, 10, 6, 10);
+        g.insets = new Insets(4, 10, 4, 10);
         g.fill = GridBagConstraints.HORIZONTAL;
 
         JTextField usnF = new JTextField(15);
@@ -227,43 +244,93 @@ public class LoginPanel extends JPanel {
         JTextField backlogsF = new JTextField("0", 15);
         JPasswordField passF = new JPasswordField(15);
 
+        JLabel usnErr = Theme.createInlineValidationLabel();
+        JLabel nameErr = Theme.createInlineValidationLabel();
+        JLabel emailErr = Theme.createInlineValidationLabel();
+        JLabel cgpaErr = Theme.createInlineValidationLabel();
+        JLabel backlogsErr = Theme.createInlineValidationLabel();
+        JLabel passErr = Theme.createInlineValidationLabel();
+
         int row = 0;
-        addFormRow(dialog, g, row++, "USN / Roll No:", usnF);
-        addFormRow(dialog, g, row++, "Full Name:", nameF);
-        addFormRow(dialog, g, row++, "Email:", emailF);
+        addFormRowWithValidation(dialog, g, row++, "USN:", usnF, usnErr);
+        addFormRowWithValidation(dialog, g, row++, "Full Name:", nameF, nameErr);
+        addFormRowWithValidation(dialog, g, row++, "Email:", emailF, emailErr);
         addFormRow(dialog, g, row++, "Phone:", phoneF);
         addFormRow(dialog, g, row++, "Department:", deptF);
-        addFormRow(dialog, g, row++, "CGPA (0.0 - 10.0):", cgpaF);
-        addFormRow(dialog, g, row++, "Active Backlogs:", backlogsF);
-        addFormRow(dialog, g, row++, "Password:", passF);
+        addFormRowWithValidation(dialog, g, row++, "CGPA (0.0 to 10.0):", cgpaF, cgpaErr);
+        addFormRowWithValidation(dialog, g, row++, "Backlogs:", backlogsF, backlogsErr);
+        addFormRowWithValidation(dialog, g, row++, "Password:", passF, passErr);
 
-        JButton submitBtn = new JButton("Create Student Account");
-        submitBtn.setBackground(new Color(30, 100, 200));
-        submitBtn.setForeground(Color.WHITE);
+        JButton submitBtn = new JButton("Register");
+        Theme.stylePrimaryButton(submitBtn);
         submitBtn.addActionListener(ev -> {
+            usnErr.setText(" ");
+            nameErr.setText(" ");
+            emailErr.setText(" ");
+            cgpaErr.setText(" ");
+            backlogsErr.setText(" ");
+            passErr.setText(" ");
+
+            String usn = usnF.getText().trim();
+            String name = nameF.getText().trim();
+            String email = emailF.getText().trim();
+            String phone = phoneF.getText().trim();
+            String dept = deptF.getText().trim();
+            String pass = new String(passF.getPassword()).trim();
+
+            boolean invalid = false;
+            if (usn.isEmpty()) {
+                usnErr.setText("USN is required.");
+                invalid = true;
+            }
+            if (name.isEmpty()) {
+                nameErr.setText("Name is required.");
+                invalid = true;
+            }
+            if (email.isEmpty()) {
+                emailErr.setText("Email is required.");
+                invalid = true;
+            }
+            if (pass.isEmpty()) {
+                passErr.setText("Password is required.");
+                invalid = true;
+            }
+
+            double cgpa = 0.0;
             try {
-                String usn = usnF.getText().trim();
-                String name = nameF.getText().trim();
-                String email = emailF.getText().trim();
-                String phone = phoneF.getText().trim();
-                String dept = deptF.getText().trim();
-                double cgpa = Double.parseDouble(cgpaF.getText().trim());
-                int backlogs = Integer.parseInt(backlogsF.getText().trim());
-                String pass = new String(passF.getPassword()).trim();
-
-                if (usn.isEmpty() || name.isEmpty() || email.isEmpty() || pass.isEmpty()) {
-                    JOptionPane.showMessageDialog(dialog, "All fields are required.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
+                cgpa = Double.parseDouble(cgpaF.getText().trim());
+                if (cgpa < 0.0 || cgpa > 10.0) {
+                    cgpaErr.setText("CGPA must be between 0.0 and 10.0.");
+                    invalid = true;
                 }
+            } catch (NumberFormatException nfe) {
+                cgpaErr.setText("Invalid numeric format for CGPA.");
+                invalid = true;
+            }
 
+            int backlogs = 0;
+            try {
+                backlogs = Integer.parseInt(backlogsF.getText().trim());
+                if (backlogs < 0) {
+                    backlogsErr.setText("Backlogs cannot be negative.");
+                    invalid = true;
+                }
+            } catch (NumberFormatException nfe) {
+                backlogsErr.setText("Invalid numeric format for backlogs.");
+                invalid = true;
+            }
+
+            if (invalid) {
+                return;
+            }
+
+            try {
                 Student s = new Student(usn, name, email, phone, dept, cgpa, backlogs, pass);
                 DataManager.getInstance().addStudent(s);
-                JOptionPane.showMessageDialog(dialog, "Student registered successfully! You may now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "Student registered successfully. You may now login.", "Success", JOptionPane.INFORMATION_MESSAGE);
                 dialog.dispose();
-            } catch (NumberFormatException nfe) {
-                JOptionPane.showMessageDialog(dialog, "Please enter valid numeric values for CGPA and Backlogs.", "Input Error", JOptionPane.ERROR_MESSAGE);
             } catch (IllegalArgumentException iae) {
-                JOptionPane.showMessageDialog(dialog, iae.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
+                usnErr.setText(iae.getMessage());
             }
         });
 
@@ -278,11 +345,12 @@ public class LoginPanel extends JPanel {
     private void showCompanyRegistrationDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Company Registration", true);
         dialog.setLayout(new GridBagLayout());
-        dialog.setSize(420, 360);
+        dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
+        dialog.setSize(420, 380);
         dialog.setLocationRelativeTo(this);
 
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(6, 10, 6, 10);
+        g.insets = new Insets(4, 10, 4, 10);
         g.fill = GridBagConstraints.HORIZONTAL;
 
         JTextField compNameF = new JTextField(15);
@@ -290,37 +358,57 @@ public class LoginPanel extends JPanel {
         JTextField emailF = new JTextField(15);
         JPasswordField passF = new JPasswordField(15);
 
+        JLabel nameErr = Theme.createInlineValidationLabel();
+        JLabel emailErr = Theme.createInlineValidationLabel();
+        JLabel passErr = Theme.createInlineValidationLabel();
+
         int row = 0;
-        addFormRow(dialog, g, row++, "Company Name:", compNameF);
+        addFormRowWithValidation(dialog, g, row++, "Company Name:", compNameF, nameErr);
         addFormRow(dialog, g, row++, "Industry Type:", industryF);
-        addFormRow(dialog, g, row++, "Email:", emailF);
-        addFormRow(dialog, g, row++, "Password:", passF);
+        addFormRowWithValidation(dialog, g, row++, "Email:", emailF, emailErr);
+        addFormRowWithValidation(dialog, g, row++, "Password:", passF, passErr);
 
-        JButton submitBtn = new JButton("Submit for Officer Approval");
-        submitBtn.setBackground(new Color(30, 100, 200));
-        submitBtn.setForeground(Color.WHITE);
+        JButton submitBtn = new JButton("Submit Registration");
+        Theme.stylePrimaryButton(submitBtn);
         submitBtn.addActionListener(ev -> {
+            nameErr.setText(" ");
+            emailErr.setText(" ");
+            passErr.setText(" ");
+
+            String name = compNameF.getText().trim();
+            String ind = industryF.getText().trim();
+            String email = emailF.getText().trim();
+            String pass = new String(passF.getPassword()).trim();
+
+            boolean invalid = false;
+            if (name.isEmpty()) {
+                nameErr.setText("Company name is required.");
+                invalid = true;
+            }
+            if (email.isEmpty()) {
+                emailErr.setText("Email is required.");
+                invalid = true;
+            }
+            if (pass.isEmpty()) {
+                passErr.setText("Password is required.");
+                invalid = true;
+            }
+
+            if (invalid) {
+                return;
+            }
+
             try {
-                String name = compNameF.getText().trim();
-                String ind = industryF.getText().trim();
-                String email = emailF.getText().trim();
-                String pass = new String(passF.getPassword()).trim();
-
-                if (name.isEmpty() || email.isEmpty() || pass.isEmpty()) {
-                    JOptionPane.showMessageDialog(dialog, "All fields are required.", "Error", JOptionPane.ERROR_MESSAGE);
-                    return;
-                }
-
                 String compId = "CMP" + (DataManager.getInstance().getCompanies().size() + 101);
                 Company c = new Company(compId, name, ind, email, pass);
                 DataManager.getInstance().addCompany(c);
-                JOptionPane.showMessageDialog(dialog, 
-                        "Company registered successfully!\nStatus: PENDING APPROVAL by Placement Officer.", 
-                        "Registration Submitted", 
+                JOptionPane.showMessageDialog(dialog,
+                        "Company registered successfully.\nStatus: Pending verification by Placement Officer.",
+                        "Registration Submitted",
                         JOptionPane.INFORMATION_MESSAGE);
                 dialog.dispose();
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                emailErr.setText(ex.getMessage());
             }
         });
 
@@ -337,11 +425,19 @@ public class LoginPanel extends JPanel {
         g.gridy = row;
         g.gridwidth = 1;
         JLabel lbl = new JLabel(label);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lbl.setFont(Theme.FONT_BODY_BOLD);
+        lbl.setForeground(Theme.COLOR_TEXT_PRIMARY);
         container.add(lbl, g);
 
         g.gridx = 1;
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        field.setFont(Theme.FONT_BODY);
         container.add(field, g);
+    }
+
+    private void addFormRowWithValidation(Container container, GridBagConstraints g, int row, String label, JComponent field, JLabel errorLabel) {
+        addFormRow(container, g, row, label, field);
+        g.gridx = 1;
+        g.gridy = row + 1;
+        container.add(errorLabel, g);
     }
 }

@@ -10,23 +10,16 @@ import com.placementsystem.util.DataManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
-/**
- * Student portal for viewing/updating profile, browsing drives, applying with
- * custom exception handling, and tracking application status.
- * Demonstrates Custom Exception Handling, Event Driven Swing, and MVC patterns.
- */
 public class StudentProfilePanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private MainFrame mainFrame;
     private Student currentStudent;
 
-    // Profile form fields
     private JTextField usnField;
     private JTextField nameField;
     private JTextField emailField;
@@ -34,9 +27,13 @@ public class StudentProfilePanel extends JPanel {
     private JTextField deptField;
     private JTextField cgpaField;
     private JTextField backlogsField;
+
+    private JLabel nameErrorLabel;
+    private JLabel cgpaErrorLabel;
+    private JLabel backlogsErrorLabel;
+
     private JButton updateProfileButton;
 
-    // Tables
     private JTable drivesTable;
     private DefaultTableModel drivesTableModel;
     private JTable applicationsTable;
@@ -45,9 +42,9 @@ public class StudentProfilePanel extends JPanel {
 
     public StudentProfilePanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(new BorderLayout(15, 15));
-        setBorder(new EmptyBorder(15, 20, 15, 20));
-        setBackground(new Color(245, 247, 250));
+        setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBorder(new EmptyBorder(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBackground(Theme.COLOR_BG);
 
         initComponents();
     }
@@ -57,72 +54,110 @@ public class StudentProfilePanel extends JPanel {
         refreshData();
     }
 
+    public boolean hasUnsavedChanges() {
+        if (currentStudent == null) return false;
+        String curName = nameField.getText().trim();
+        String curPhone = phoneField.getText().trim();
+        String curDept = deptField.getText().trim();
+        String curCgpa = cgpaField.getText().trim();
+        String curBacklogs = backlogsField.getText().trim();
+
+        if (!curName.equals(currentStudent.getName() != null ? currentStudent.getName() : "")) return true;
+        if (!curPhone.equals(currentStudent.getPhone() != null ? currentStudent.getPhone() : "")) return true;
+        if (!curDept.equals(currentStudent.getDepartment() != null ? currentStudent.getDepartment() : "")) return true;
+
+        try {
+            double parsedCgpa = Double.parseDouble(curCgpa);
+            if (Math.abs(parsedCgpa - currentStudent.getCgpa()) > 0.001) return true;
+        } catch (NumberFormatException ignored) {
+            return true;
+        }
+
+        try {
+            int parsedBacklogs = Integer.parseInt(curBacklogs);
+            if (parsedBacklogs != currentStudent.getBacklogs()) return true;
+        } catch (NumberFormatException ignored) {
+            return true;
+        }
+
+        return false;
+    }
+
     private void initComponents() {
-        // Left Panel: Student Profile
         JPanel profileCard = createProfileCard();
         add(profileCard, BorderLayout.WEST);
 
-        // Center Panel: Tabs for Drives, Applications, and Notifications
         JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabbedPane.setFont(Theme.FONT_BODY_BOLD);
 
         tabbedPane.addTab("Available Placement Drives", createDrivesPanel());
-        tabbedPane.addTab("My Applications & Status", createApplicationsPanel());
-        tabbedPane.addTab("Notifications Inbox", createNotificationsPanel());
+        tabbedPane.addTab("My Applications", createApplicationsPanel());
+        tabbedPane.addTab("Notifications", createNotificationsPanel());
 
         add(tabbedPane, BorderLayout.CENTER);
     }
 
     private JPanel createProfileCard() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setPreferredSize(new Dimension(340, 600));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 215, 225), 1),
-                new EmptyBorder(15, 15, 15, 15)
-        ));
+        panel.setPreferredSize(new Dimension(320, 600));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(Theme.createCardBorder());
 
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(3, Theme.SPACING_SMALL, 3, Theme.SPACING_SMALL);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
 
-        JLabel title = new JLabel("Student Profile", SwingConstants.CENTER);
-        title.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        title.setForeground(new Color(24, 43, 73));
+        JLabel title = new JLabel("Student Profile", SwingConstants.LEFT);
+        title.setFont(Theme.FONT_TITLE);
+        title.setForeground(Theme.COLOR_TEXT_PRIMARY);
         panel.add(title, gbc);
 
         gbc.gridwidth = 1;
         gbc.gridy++;
 
         usnField = new JTextField(12);
+        usnField.setFont(Theme.FONT_BODY);
         usnField.setEditable(false);
+
         nameField = new JTextField(12);
+        nameField.setFont(Theme.FONT_BODY);
+
         emailField = new JTextField(12);
+        emailField.setFont(Theme.FONT_BODY);
         emailField.setEditable(false);
+
         phoneField = new JTextField(12);
+        phoneField.setFont(Theme.FONT_BODY);
+
         deptField = new JTextField(12);
+        deptField.setFont(Theme.FONT_BODY);
+
         cgpaField = new JTextField(12);
+        cgpaField.setFont(Theme.FONT_BODY);
+
         backlogsField = new JTextField(12);
+        backlogsField.setFont(Theme.FONT_BODY);
+
+        nameErrorLabel = Theme.createInlineValidationLabel();
+        cgpaErrorLabel = Theme.createInlineValidationLabel();
+        backlogsErrorLabel = Theme.createInlineValidationLabel();
 
         addField(panel, gbc, "USN:", usnField);
-        addField(panel, gbc, "Full Name:", nameField);
+        addFieldWithValidation(panel, gbc, "Full Name:", nameField, nameErrorLabel);
         addField(panel, gbc, "Email:", emailField);
         addField(panel, gbc, "Phone:", phoneField);
         addField(panel, gbc, "Department:", deptField);
-        addField(panel, gbc, "CGPA (0.0-10.0):", cgpaField);
-        addField(panel, gbc, "Backlogs:", backlogsField);
+        addFieldWithValidation(panel, gbc, "CGPA (0.0 to 10.0):", cgpaField, cgpaErrorLabel);
+        addFieldWithValidation(panel, gbc, "Backlogs:", backlogsField, backlogsErrorLabel);
 
         gbc.gridx = 0;
         gbc.gridy++;
         gbc.gridwidth = 2;
-        updateProfileButton = new JButton("Save Profile Changes");
-        updateProfileButton.setBackground(new Color(30, 100, 200));
-        updateProfileButton.setForeground(Color.WHITE);
-        updateProfileButton.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        updateProfileButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        updateProfileButton = new JButton("Save Profile");
+        Theme.stylePrimaryButton(updateProfileButton);
         updateProfileButton.addActionListener(e -> updateProfile());
         panel.add(updateProfileButton, gbc);
 
@@ -133,18 +168,25 @@ public class StudentProfilePanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy++;
         JLabel lbl = new JLabel(label);
-        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        lbl.setFont(Theme.FONT_BODY_BOLD);
+        lbl.setForeground(Theme.COLOR_TEXT_PRIMARY);
         panel.add(lbl, gbc);
 
         gbc.gridx = 1;
-        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         panel.add(field, gbc);
     }
 
+    private void addFieldWithValidation(JPanel panel, GridBagConstraints gbc, String label, JTextField field, JLabel errorLabel) {
+        addField(panel, gbc, label, field);
+        gbc.gridx = 1;
+        gbc.gridy++;
+        panel.add(errorLabel, gbc);
+    }
+
     private JPanel createDrivesPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
         String[] cols = {"Drive ID", "Company", "Role", "Package (LPA)", "Min CGPA", "Max Backlogs", "Date", "Venue"};
         drivesTableModel = new DefaultTableModel(cols, 0) {
@@ -154,24 +196,34 @@ public class StudentProfilePanel extends JPanel {
             }
         };
         drivesTable = new JTable(drivesTableModel);
-        drivesTable.setRowHeight(26);
+        Theme.styleTable(drivesTable);
         drivesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        drivesTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        // Right-align numeric columns
+        drivesTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
+        drivesTable.getColumnModel().getColumn(4).setCellRenderer(Theme.getRightAlignRenderer());
+        drivesTable.getColumnModel().getColumn(5).setCellRenderer(Theme.getRightAlignRenderer());
+
+        // Sensible column widths
+        drivesTable.getColumnModel().getColumn(0).setPreferredWidth(80);
+        drivesTable.getColumnModel().getColumn(1).setPreferredWidth(140);
+        drivesTable.getColumnModel().getColumn(2).setPreferredWidth(160);
+        drivesTable.getColumnModel().getColumn(3).setPreferredWidth(90);
+        drivesTable.getColumnModel().getColumn(4).setPreferredWidth(75);
+        drivesTable.getColumnModel().getColumn(5).setPreferredWidth(85);
 
         panel.add(new JScrollPane(drivesTable), BorderLayout.CENTER);
 
-        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
-        JButton applyBtn = new JButton("Apply for Selected Drive");
-        applyBtn.setBackground(new Color(40, 167, 69));
-        applyBtn.setForeground(Color.WHITE);
-        applyBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        applyBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        applyBtn.addActionListener(e -> applySelectedDrive());
 
         JButton refreshBtn = new JButton("Refresh Drives");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadDrives());
+
+        JButton applyBtn = new JButton("Apply for Selected Drive");
+        Theme.stylePrimaryButton(applyBtn);
+        applyBtn.addActionListener(e -> applySelectedDrive());
 
         bottomBar.add(refreshBtn);
         bottomBar.add(applyBtn);
@@ -181,11 +233,11 @@ public class StudentProfilePanel extends JPanel {
     }
 
     private JPanel createApplicationsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        String[] cols = {"Application ID", "Company", "Role", "Offered Package", "Status", "Applied On"};
+        String[] cols = {"Application ID", "Company", "Role", "Package (LPA)", "Status", "Applied On"};
         applicationsTableModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int row, int col) {
@@ -193,15 +245,17 @@ public class StudentProfilePanel extends JPanel {
             }
         };
         applicationsTable = new JTable(applicationsTableModel);
-        applicationsTable.setRowHeight(26);
-        applicationsTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        Theme.styleTable(applicationsTable);
+
+        // Right-align Package
+        applicationsTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
 
         panel.add(new JScrollPane(applicationsTable), BorderLayout.CENTER);
 
-        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
-        JButton refreshBtn = new JButton("Refresh Applications");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JButton refreshBtn = new JButton("Refresh");
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadApplications());
         bottomBar.add(refreshBtn);
         panel.add(bottomBar, BorderLayout.SOUTH);
@@ -210,21 +264,23 @@ public class StudentProfilePanel extends JPanel {
     }
 
     private JPanel createNotificationsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
         notificationListModel = new DefaultListModel<>();
         JList<String> notifList = new JList<>(notificationListModel);
-        notifList.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        notifList.setFont(Theme.FONT_BODY);
+        notifList.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        notifList.setBackground(Theme.COLOR_SURFACE);
         notifList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         panel.add(new JScrollPane(notifList), BorderLayout.CENTER);
 
-        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
-        JButton refreshBtn = new JButton("Refresh Notifications");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JButton refreshBtn = new JButton("Refresh");
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadNotifications());
         bottomBar.add(refreshBtn);
         panel.add(bottomBar, BorderLayout.SOUTH);
@@ -234,31 +290,60 @@ public class StudentProfilePanel extends JPanel {
 
     private void updateProfile() {
         if (currentStudent == null) return;
+        nameErrorLabel.setText(" ");
+        cgpaErrorLabel.setText(" ");
+        backlogsErrorLabel.setText(" ");
+
+        String name = nameField.getText().trim();
+        String phone = phoneField.getText().trim();
+        String dept = deptField.getText().trim();
+
+        boolean invalid = false;
+        if (name.isEmpty()) {
+            nameErrorLabel.setText("Name cannot be blank.");
+            invalid = true;
+        }
+
+        double cgpa = 0.0;
         try {
-            String name = nameField.getText().trim();
-            String phone = phoneField.getText().trim();
-            String dept = deptField.getText().trim();
-            double cgpa = Double.parseDouble(cgpaField.getText().trim());
-            int backlogs = Integer.parseInt(backlogsField.getText().trim());
-
-            if (name.isEmpty() || dept.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Name and Department cannot be blank.", "Validation Error", JOptionPane.ERROR_MESSAGE);
-                return;
+            cgpa = Double.parseDouble(cgpaField.getText().trim());
+            if (cgpa < 0.0 || cgpa > 10.0) {
+                cgpaErrorLabel.setText("CGPA must be between 0.0 and 10.0.");
+                invalid = true;
             }
+        } catch (NumberFormatException ex) {
+            cgpaErrorLabel.setText("Invalid numeric format for CGPA.");
+            invalid = true;
+        }
 
+        int backlogs = 0;
+        try {
+            backlogs = Integer.parseInt(backlogsField.getText().trim());
+            if (backlogs < 0) {
+                backlogsErrorLabel.setText("Backlogs cannot be negative.");
+                invalid = true;
+            }
+        } catch (NumberFormatException ex) {
+            backlogsErrorLabel.setText("Invalid numeric format for backlogs.");
+            invalid = true;
+        }
+
+        if (invalid) {
+            return;
+        }
+
+        try {
             currentStudent.setName(name);
             currentStudent.setPhone(phone);
             currentStudent.setDepartment(dept);
-            currentStudent.setCgpa(cgpa); // Triggers 0.0-10.0 validation
+            currentStudent.setCgpa(cgpa);
             currentStudent.setBacklogs(backlogs);
 
             DataManager.getInstance().updateStudent(currentStudent);
-            JOptionPane.showMessageDialog(this, "Profile updated successfully!", "Saved", JOptionPane.INFORMATION_MESSAGE);
-            mainFrame.updateActiveUserDisplay("Student: " + currentStudent.getName());
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter valid numeric values for CGPA and Backlogs.", "Input Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Profile updated successfully.", "Saved", JOptionPane.INFORMATION_MESSAGE);
+            mainFrame.updateActiveUserDisplay(currentStudent.getName() + " (Student)");
         } catch (IllegalArgumentException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Validation Error", JOptionPane.ERROR_MESSAGE);
+            cgpaErrorLabel.setText(ex.getMessage());
         }
     }
 
@@ -284,26 +369,18 @@ public class StudentProfilePanel extends JPanel {
         }
 
         try {
-            // Invokes business logic with custom exceptions
+            // Checked exception handling: IneligibleStudentException & DuplicateApplicationException
             DataManager.getInstance().applyToDrive(currentStudent, selectedDrive);
-            JOptionPane.showMessageDialog(this, 
-                    "Application submitted successfully for " + selectedDrive.getRole() + " at " + selectedDrive.getCompany().getCompanyName() + "!", 
-                    "Application Success", 
+            JOptionPane.showMessageDialog(this,
+                    "Application submitted successfully for " + selectedDrive.getRole() + " at " + selectedDrive.getCompany().getCompanyName() + ".",
+                    "Success",
                     JOptionPane.INFORMATION_MESSAGE);
             loadApplications();
             loadNotifications();
         } catch (IneligibleStudentException ise) {
-            // Custom Checked Exception 1
-            JOptionPane.showMessageDialog(this, 
-                    ise.getMessage(), 
-                    "Eligibility Criteria Not Met", 
-                    JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, ise.getMessage(), "Eligibility Criteria Not Met", JOptionPane.WARNING_MESSAGE);
         } catch (DuplicateApplicationException dae) {
-            // Custom Checked Exception 2
-            JOptionPane.showMessageDialog(this, 
-                    dae.getMessage(), 
-                    "Duplicate Application", 
-                    JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, dae.getMessage(), "Duplicate Application", JOptionPane.WARNING_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Application Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -333,8 +410,8 @@ public class StudentProfilePanel extends JPanel {
                     d.getDriveId(),
                     compName,
                     d.getRole(),
-                    d.getPackageOffered() + " LPA",
-                    d.getEligibleCGPA(),
+                    String.format("%.1f", d.getPackageOffered()),
+                    String.format("%.2f", d.getEligibleCGPA()),
                     d.getMaxBacklogsAllowed(),
                     d.getDriveDate(),
                     d.getVenue()
@@ -346,11 +423,15 @@ public class StudentProfilePanel extends JPanel {
         applicationsTableModel.setRowCount(0);
         if (currentStudent == null) return;
         List<Application> apps = DataManager.getInstance().getApplicationsForStudent(currentStudent);
+        if (apps.isEmpty()) {
+            applicationsTableModel.addRow(new Object[]{"No applications yet", "-", "-", "-", "-", "-"});
+            return;
+        }
         for (Application a : apps) {
-            String compName = (a.getDrive() != null && a.getDrive().getCompany() != null) 
+            String compName = (a.getDrive() != null && a.getDrive().getCompany() != null)
                     ? a.getDrive().getCompany().getCompanyName() : "N/A";
             String role = (a.getDrive() != null) ? a.getDrive().getRole() : "N/A";
-            String pkg = (a.getDrive() != null) ? a.getDrive().getPackageOffered() + " LPA" : "N/A";
+            String pkg = (a.getDrive() != null) ? String.format("%.1f", a.getDrive().getPackageOffered()) : "N/A";
 
             applicationsTableModel.addRow(new Object[]{
                     a.getApplicationId(),
@@ -371,7 +452,7 @@ public class StudentProfilePanel extends JPanel {
             notificationListModel.addElement("No notifications yet.");
         } else {
             for (int i = notifs.size() - 1; i >= 0; i--) {
-                notificationListModel.addElement("• " + notifs.get(i));
+                notificationListModel.addElement(notifs.get(i));
             }
         }
     }

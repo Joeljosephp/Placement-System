@@ -11,10 +11,6 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
-/**
- * Universal application pipeline and interview tracking dashboard.
- * Demonstrates JTable, TableRowSorter, Filtering, and Association navigation.
- */
 public class ApplicationTrackingPanel extends JPanel {
     private static final long serialVersionUID = 1L;
 
@@ -32,53 +28,54 @@ public class ApplicationTrackingPanel extends JPanel {
 
     public ApplicationTrackingPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(new BorderLayout(10, 10));
-        setBorder(new EmptyBorder(15, 20, 15, 20));
-        setBackground(new Color(245, 247, 250));
+        setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBorder(new EmptyBorder(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBackground(Theme.COLOR_BG);
 
         initComponents();
     }
 
     private void initComponents() {
-        // North: Title and Search/Filter Bar
-        JPanel northPanel = new JPanel(new BorderLayout(10, 10));
+        JPanel northPanel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         northPanel.setOpaque(false);
 
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(Color.WHITE);
-        headerPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 215, 225), 1),
-                new EmptyBorder(10, 15, 10, 15)
-        ));
+        headerPanel.setBackground(Theme.COLOR_SURFACE);
+        headerPanel.setBorder(Theme.createCardBorder());
 
-        JLabel titleLabel = new JLabel("Application Pipeline & Interview Tracking", SwingConstants.LEFT);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 17));
-        titleLabel.setForeground(new Color(24, 43, 73));
+        JLabel titleLabel = new JLabel("Application Pipeline and Interview Tracking", SwingConstants.LEFT);
+        titleLabel.setFont(Theme.FONT_TITLE);
+        titleLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
         headerPanel.add(titleLabel, BorderLayout.WEST);
 
-        // Filter Controls
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         controls.setOpaque(false);
 
-        controls.add(new JLabel("Filter Status:"));
+        JLabel filterLbl = new JLabel("Status:");
+        filterLbl.setFont(Theme.FONT_BODY_BOLD);
+        controls.add(filterLbl);
+
         String[] filters = {"All Statuses", "Applied", "Shortlisted", "Selected", "Rejected"};
         filterComboBox = new JComboBox<>(filters);
-        filterComboBox.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        filterComboBox.setFont(Theme.FONT_BODY);
         filterComboBox.addActionListener(e -> loadApplications());
         controls.add(filterComboBox);
 
-        controls.add(new JLabel("Search:"));
+        JLabel searchLbl = new JLabel("Search:");
+        searchLbl.setFont(Theme.FONT_BODY_BOLD);
+        controls.add(searchLbl);
+
         searchField = new JTextField(12);
-        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        searchField.setFont(Theme.FONT_BODY);
         controls.add(searchField);
 
         JButton searchBtn = new JButton("Filter");
-        searchBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        Theme.stylePrimaryButton(searchBtn);
         searchBtn.addActionListener(e -> loadApplications());
         controls.add(searchBtn);
 
-        JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JButton refreshBtn = new JButton("Reset");
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> {
             searchField.setText("");
             filterComboBox.setSelectedIndex(0);
@@ -90,23 +87,33 @@ public class ApplicationTrackingPanel extends JPanel {
         northPanel.add(headerPanel, BorderLayout.NORTH);
         add(northPanel, BorderLayout.NORTH);
 
-        // Center: Split pane for Applications and Interviews
-        JPanel splitPanel = new JPanel(new GridLayout(2, 1, 10, 10));
+        JPanel splitPanel = new JPanel(new GridLayout(2, 1, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         splitPanel.setOpaque(false);
 
-        // Top: Applications Table
-        JPanel appsCard = new JPanel(new BorderLayout(5, 5));
-        appsCard.setBackground(Color.WHITE);
-        appsCard.setBorder(BorderFactory.createTitledBorder("1. Candidate Applications Directory"));
+        JPanel appsCard = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        appsCard.setBackground(Theme.COLOR_SURFACE);
+        appsCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Theme.COLOR_BORDER, 1),
+                new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL)
+        ));
 
-        String[] appCols = {"Application ID", "Student Name", "USN", "Dept", "CGPA", "Company", "Role", "CTC (LPA)", "Status", "Applied On"};
+        JLabel appsHeader = new JLabel("Candidate Applications");
+        appsHeader.setFont(Theme.FONT_BODY_BOLD);
+        appsCard.add(appsHeader, BorderLayout.NORTH);
+
+        String[] appCols = {"App ID", "Student Name", "USN", "Department", "CGPA", "Company", "Role", "CTC (LPA)", "Status", "Applied On"};
         applicationsTableModel = new DefaultTableModel(appCols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         applicationsTable = new JTable(applicationsTableModel);
-        applicationsTable.setRowHeight(24);
+        Theme.styleTable(applicationsTable);
         applicationsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        // Right-align numeric columns
+        applicationsTable.getColumnModel().getColumn(4).setCellRenderer(Theme.getRightAlignRenderer());
+        applicationsTable.getColumnModel().getColumn(7).setCellRenderer(Theme.getRightAlignRenderer());
+
         applicationsTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 onApplicationSelected();
@@ -115,23 +122,25 @@ public class ApplicationTrackingPanel extends JPanel {
         appsCard.add(new JScrollPane(applicationsTable), BorderLayout.CENTER);
         splitPanel.add(appsCard);
 
-        // Bottom: Interviews Table
-        JPanel interviewsCard = new JPanel(new BorderLayout(5, 5));
-        interviewsCard.setBackground(Color.WHITE);
-        interviewsCard.setBorder(BorderFactory.createTitledBorder("2. Interview Rounds Scheduled for Selected Application"));
+        JPanel interviewsCard = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        interviewsCard.setBackground(Theme.COLOR_SURFACE);
+        interviewsCard.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Theme.COLOR_BORDER, 1),
+                new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL)
+        ));
 
-        selectedAppLabel = new JLabel(" Select an application above to inspect interview schedules.", SwingConstants.LEFT);
-        selectedAppLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
-        selectedAppLabel.setForeground(Color.GRAY);
+        selectedAppLabel = new JLabel("Select an application above to inspect interview schedules.", SwingConstants.LEFT);
+        selectedAppLabel.setFont(Theme.FONT_SMALL);
+        selectedAppLabel.setForeground(Theme.COLOR_TEXT_MUTED);
         interviewsCard.add(selectedAppLabel, BorderLayout.NORTH);
 
-        String[] intCols = {"Interview ID", "Application ID", "Round Name", "Result / Status", "Interview Date & Time"};
+        String[] intCols = {"Interview ID", "Application ID", "Round Name", "Result", "Date and Time"};
         interviewsTableModel = new DefaultTableModel(intCols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         interviewsTable = new JTable(interviewsTableModel);
-        interviewsTable.setRowHeight(24);
+        Theme.styleTable(interviewsTable);
         interviewsCard.add(new JScrollPane(interviewsTable), BorderLayout.CENTER);
         splitPanel.add(interviewsCard);
 
@@ -145,29 +154,28 @@ public class ApplicationTrackingPanel extends JPanel {
     private void loadApplications() {
         applicationsTableModel.setRowCount(0);
         interviewsTableModel.setRowCount(0);
-        selectedAppLabel.setText(" Select an application above to inspect interview schedules.");
+        selectedAppLabel.setText("Select an application above to inspect interview schedules.");
 
         String statusFilter = (String) filterComboBox.getSelectedItem();
         String query = searchField.getText().trim().toLowerCase();
 
         List<Application> apps = DataManager.getInstance().getApplications();
+        int matched = 0;
         for (Application a : apps) {
             if (a.getStudent() == null || a.getDrive() == null) continue;
 
-            // Apply status filter
             if (!"All Statuses".equalsIgnoreCase(statusFilter) && !a.getStatus().equalsIgnoreCase(statusFilter)) {
                 continue;
             }
 
-            // Apply search query filter
             String studentName = a.getStudent().getName().toLowerCase();
             String studentUsn = a.getStudent().getUsn().toLowerCase();
-            String companyName = (a.getDrive().getCompany() != null) 
+            String companyName = (a.getDrive().getCompany() != null)
                     ? a.getDrive().getCompany().getCompanyName().toLowerCase() : "";
             String role = a.getDrive().getRole().toLowerCase();
 
             if (!query.isEmpty()) {
-                if (!studentName.contains(query) && !studentUsn.contains(query) 
+                if (!studentName.contains(query) && !studentUsn.contains(query)
                         && !companyName.contains(query) && !role.contains(query)) {
                     continue;
                 }
@@ -180,13 +188,18 @@ public class ApplicationTrackingPanel extends JPanel {
                     a.getStudent().getName(),
                     a.getStudent().getUsn(),
                     a.getStudent().getDepartment(),
-                    a.getStudent().getCgpa(),
+                    String.format("%.2f", a.getStudent().getCgpa()),
                     cName,
                     a.getDrive().getRole(),
-                    a.getDrive().getPackageOffered(),
+                    String.format("%.1f", a.getDrive().getPackageOffered()),
                     a.getStatus(),
                     a.getAppliedDate()
             });
+            matched++;
+        }
+
+        if (matched == 0) {
+            applicationsTableModel.addRow(new Object[]{"-", "No applications match criteria", "-", "-", "-", "-", "-", "-", "-", "-"});
         }
     }
 
@@ -194,18 +207,24 @@ public class ApplicationTrackingPanel extends JPanel {
         int row = applicationsTable.getSelectedRow();
         interviewsTableModel.setRowCount(0);
         if (row == -1) {
-            selectedAppLabel.setText(" Select an application above to inspect interview schedules.");
+            selectedAppLabel.setText("Select an application above to inspect interview schedules.");
             return;
         }
 
         String appId = (String) applicationsTableModel.getValueAt(row, 0);
+        if ("-".equals(appId)) {
+            selectedAppLabel.setText("Select an application above to inspect interview schedules.");
+            return;
+        }
+
         String sName = (String) applicationsTableModel.getValueAt(row, 1);
         String cName = (String) applicationsTableModel.getValueAt(row, 5);
         String role = (String) applicationsTableModel.getValueAt(row, 6);
 
-        selectedAppLabel.setText(" Showing interview rounds for: " + sName + " -> " + role + " at " + cName + " (" + appId + ")");
+        selectedAppLabel.setText("Interview rounds for: " + sName + " - " + role + " at " + cName + " (" + appId + ")");
 
         List<Interview> allInterviews = DataManager.getInstance().getInterviews();
+        int count = 0;
         for (Interview inv : allInterviews) {
             if (inv.getApplication() != null && inv.getApplication().getApplicationId().equalsIgnoreCase(appId)) {
                 interviewsTableModel.addRow(new Object[]{
@@ -215,11 +234,12 @@ public class ApplicationTrackingPanel extends JPanel {
                         inv.getResult(),
                         inv.getInterviewDate()
                 });
+                count++;
             }
         }
 
-        if (interviewsTableModel.getRowCount() == 0) {
-            selectedAppLabel.setText(" No interview rounds scheduled yet for: " + sName + " (" + appId + ")");
+        if (count == 0) {
+            selectedAppLabel.setText("No interview rounds scheduled yet for: " + sName + " (" + appId + ")");
         }
     }
 }

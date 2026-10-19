@@ -9,48 +9,32 @@ import com.placementsystem.util.DataManager;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.TitledBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.List;
 
-/**
- * Administrative panel for the Placement Officer.
- * Features a JTabbedPane with 3 tabs:
- *  1. Pending Company Approvals
- *  2. All Active Placement Drives
- *  3. Placement Analytics & Summary Stats
- * Demonstrates Tabbed Panes, Data Filtering, Analytics Computation, and Officer Actions.
- */
 public class AdminDashboard extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private MainFrame mainFrame;
     private PlacementOfficer currentOfficer;
 
-    // Tab 1: Pending Approvals
     private JTable pendingCompaniesTable;
     private DefaultTableModel pendingCompaniesModel;
 
-    // Tab 2: All Active Drives
     private JTable allDrivesTable;
     private DefaultTableModel allDrivesModel;
 
-    // Tab 3: Analytics components
-    private JLabel totalStudentsVal;
-    private JLabel totalPlacedVal;
-    private JLabel placementRateVal;
-    private JLabel totalCompaniesVal;
-    private JLabel totalDrivesVal;
-    private JLabel avgCgpaVal;
+    private JTable summaryStatsTable;
+    private DefaultTableModel summaryStatsModel;
     private JTable placedCandidatesTable;
     private DefaultTableModel placedCandidatesModel;
 
     public AdminDashboard(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
-        setLayout(new BorderLayout(10, 10));
-        setBorder(new EmptyBorder(15, 20, 15, 20));
-        setBackground(new Color(245, 247, 250));
+        setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBorder(new EmptyBorder(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        setBackground(Theme.COLOR_BG);
 
         initComponents();
     }
@@ -62,48 +46,45 @@ public class AdminDashboard extends JPanel {
 
     private void initComponents() {
         JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        tabbedPane.setFont(Theme.FONT_BODY_BOLD);
 
-        tabbedPane.addTab("1. Pending Company Approvals", createPendingApprovalsTab());
-        tabbedPane.addTab("2. All Active Placement Drives", createAllDrivesTab());
-        tabbedPane.addTab("3. Placement Analytics & Summary Stats", createAnalyticsTab());
+        tabbedPane.addTab("Pending Company Approvals", createPendingApprovalsTab());
+        tabbedPane.addTab("All Placement Drives", createAllDrivesTab());
+        tabbedPane.addTab("Placement Analytics", createAnalyticsTab());
 
         add(tabbedPane, BorderLayout.CENTER);
     }
 
     private JPanel createPendingApprovalsTab() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
         JLabel header = new JLabel("Company Verification Queue", SwingConstants.LEFT);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        header.setForeground(new Color(24, 43, 73));
+        header.setFont(Theme.FONT_TITLE);
+        header.setForeground(Theme.COLOR_TEXT_PRIMARY);
         panel.add(header, BorderLayout.NORTH);
 
-        String[] cols = {"Company ID", "Company Name", "Industry Sector", "Official Email", "Approval Status"};
+        String[] cols = {"Company ID", "Company Name", "Industry Sector", "Official Email", "Status"};
         pendingCompaniesModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         pendingCompaniesTable = new JTable(pendingCompaniesModel);
-        pendingCompaniesTable.setRowHeight(26);
+        Theme.styleTable(pendingCompaniesTable);
         pendingCompaniesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         panel.add(new JScrollPane(pendingCompaniesTable), BorderLayout.CENTER);
 
-        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         actionPanel.setOpaque(false);
 
-        JButton refreshBtn = new JButton("Refresh Queue");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JButton refreshBtn = new JButton("Refresh");
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadPendingCompanies());
         actionPanel.add(refreshBtn);
 
         JButton approveBtn = new JButton("Approve Selected Company");
-        approveBtn.setBackground(new Color(40, 167, 69));
-        approveBtn.setForeground(Color.WHITE);
-        approveBtn.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        approveBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        Theme.stylePrimaryButton(approveBtn);
         approveBtn.addActionListener(e -> approveSelectedCompany());
         actionPanel.add(approveBtn);
 
@@ -112,28 +93,35 @@ public class AdminDashboard extends JPanel {
     }
 
     private JPanel createAllDrivesTab() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        JLabel header = new JLabel("University Campus Recruitment Drives", SwingConstants.LEFT);
-        header.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        header.setForeground(new Color(24, 43, 73));
+        JLabel header = new JLabel("Active Campus Recruitment Drives", SwingConstants.LEFT);
+        header.setFont(Theme.FONT_TITLE);
+        header.setForeground(Theme.COLOR_TEXT_PRIMARY);
         panel.add(header, BorderLayout.NORTH);
 
-        String[] cols = {"Drive ID", "Company", "Role", "Package (LPA)", "Min CGPA", "Max Backlogs", "Date", "Venue", "Total Applicants"};
+        String[] cols = {"Drive ID", "Company", "Role", "Package (LPA)", "Min CGPA", "Max Backlogs", "Date", "Venue", "Applicants"};
         allDrivesModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         allDrivesTable = new JTable(allDrivesModel);
-        allDrivesTable.setRowHeight(26);
+        Theme.styleTable(allDrivesTable);
+
+        // Right-align numeric columns
+        allDrivesTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
+        allDrivesTable.getColumnModel().getColumn(4).setCellRenderer(Theme.getRightAlignRenderer());
+        allDrivesTable.getColumnModel().getColumn(5).setCellRenderer(Theme.getRightAlignRenderer());
+        allDrivesTable.getColumnModel().getColumn(8).setCellRenderer(Theme.getRightAlignRenderer());
+
         panel.add(new JScrollPane(allDrivesTable), BorderLayout.CENTER);
 
-        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
-        JButton refreshBtn = new JButton("Refresh Drives");
-        refreshBtn.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        JButton refreshBtn = new JButton("Refresh");
+        Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadAllDrives());
         bottomBar.add(refreshBtn);
         panel.add(bottomBar, BorderLayout.SOUTH);
@@ -142,67 +130,57 @@ public class AdminDashboard extends JPanel {
     }
 
     private JPanel createAnalyticsTab() {
-        JPanel panel = new JPanel(new BorderLayout(15, 15));
-        panel.setBackground(Color.WHITE);
-        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+        JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
+        panel.setBackground(Theme.COLOR_SURFACE);
+        panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        // Metric Cards Grid
-        JPanel metricsGrid = new JPanel(new GridLayout(2, 3, 15, 15));
-        metricsGrid.setOpaque(false);
+        // Two-column summary metrics table replacing the 3x2 card grid
+        JPanel summaryPanel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
+        summaryPanel.setOpaque(false);
 
-        totalStudentsVal = new JLabel("0", SwingConstants.CENTER);
-        totalPlacedVal = new JLabel("0", SwingConstants.CENTER);
-        placementRateVal = new JLabel("0.0%", SwingConstants.CENTER);
-        totalCompaniesVal = new JLabel("0", SwingConstants.CENTER);
-        totalDrivesVal = new JLabel("0", SwingConstants.CENTER);
-        avgCgpaVal = new JLabel("0.0", SwingConstants.CENTER);
+        JLabel summaryTitle = new JLabel("Placement Overview Statistics");
+        summaryTitle.setFont(Theme.FONT_TITLE);
+        summaryTitle.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        summaryPanel.add(summaryTitle, BorderLayout.NORTH);
 
-        metricsGrid.add(createMetricCard("Total Students Enrolled", totalStudentsVal, new Color(41, 128, 185)));
-        metricsGrid.add(createMetricCard("Students Placed (Offers)", totalPlacedVal, new Color(39, 174, 96)));
-        metricsGrid.add(createMetricCard("Placement Rate", placementRateVal, new Color(142, 68, 173)));
-        metricsGrid.add(createMetricCard("Partner Companies", totalCompaniesVal, new Color(211, 84, 0)));
-        metricsGrid.add(createMetricCard("Recruitment Drives", totalDrivesVal, new Color(22, 160, 133)));
-        metricsGrid.add(createMetricCard("Average Student CGPA", avgCgpaVal, new Color(44, 62, 80)));
+        String[] statCols = {"Metric", "Value"};
+        summaryStatsModel = new DefaultTableModel(statCols, 0) {
+            @Override
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        summaryStatsTable = new JTable(summaryStatsModel);
+        Theme.styleTable(summaryStatsTable);
+        summaryStatsTable.getColumnModel().getColumn(1).setCellRenderer(Theme.getRightAlignRenderer());
+        summaryStatsTable.setPreferredScrollableViewportSize(new Dimension(500, 150));
 
-        panel.add(metricsGrid, BorderLayout.NORTH);
+        summaryPanel.add(new JScrollPane(summaryStatsTable), BorderLayout.CENTER);
+        panel.add(summaryPanel, BorderLayout.NORTH);
 
         // Placed candidates table
-        JPanel tableCard = new JPanel(new BorderLayout(5, 5));
+        JPanel tableCard = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         tableCard.setOpaque(false);
-        tableCard.setBorder(BorderFactory.createTitledBorder("Selected / Placed Candidates Directory"));
 
-        String[] cols = {"Student USN", "Student Name", "Department", "CGPA", "Hiring Company", "Job Role", "Offered CTC"};
+        JLabel placedTitle = new JLabel("Placed Candidates Directory");
+        placedTitle.setFont(Theme.FONT_TITLE);
+        placedTitle.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        tableCard.add(placedTitle, BorderLayout.NORTH);
+
+        String[] cols = {"Student USN", "Student Name", "Department", "CGPA", "Company", "Job Role", "CTC (LPA)"};
         placedCandidatesModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
         placedCandidatesTable = new JTable(placedCandidatesModel);
-        placedCandidatesTable.setRowHeight(24);
-        tableCard.add(new JScrollPane(placedCandidatesTable), BorderLayout.CENTER);
+        Theme.styleTable(placedCandidatesTable);
 
+        // Right-align CGPA and CTC
+        placedCandidatesTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
+        placedCandidatesTable.getColumnModel().getColumn(6).setCellRenderer(Theme.getRightAlignRenderer());
+
+        tableCard.add(new JScrollPane(placedCandidatesTable), BorderLayout.CENTER);
         panel.add(tableCard, BorderLayout.CENTER);
 
         return panel;
-    }
-
-    private JPanel createMetricCard(String title, JLabel valueLabel, Color accentColor) {
-        JPanel card = new JPanel(new BorderLayout(5, 5));
-        card.setBackground(new Color(250, 252, 255));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(225, 230, 240), 1),
-                new EmptyBorder(12, 12, 12, 12)
-        ));
-
-        JLabel titleLabel = new JLabel(title, SwingConstants.CENTER);
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLabel.setForeground(Color.GRAY);
-
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        valueLabel.setForeground(accentColor);
-
-        card.add(titleLabel, BorderLayout.NORTH);
-        card.add(valueLabel, BorderLayout.CENTER);
-        return card;
     }
 
     private void approveSelectedCompany() {
@@ -222,13 +200,12 @@ public class AdminDashboard extends JPanel {
         }
 
         if (target != null && currentOfficer != null) {
-            // Invokes PlacementOfficer method
             currentOfficer.approveCompany(target);
             DataManager.getInstance().updateCompany(target);
 
-            JOptionPane.showMessageDialog(this, 
-                    "Company '" + target.getCompanyName() + "' has been approved!\nNotification sent to company recruiter.", 
-                    "Approval Completed", 
+            JOptionPane.showMessageDialog(this,
+                    "Company '" + target.getCompanyName() + "' approved.",
+                    "Success",
                     JOptionPane.INFORMATION_MESSAGE);
 
             loadPendingCompanies();
@@ -245,6 +222,10 @@ public class AdminDashboard extends JPanel {
     private void loadPendingCompanies() {
         pendingCompaniesModel.setRowCount(0);
         List<Company> pending = DataManager.getInstance().getPendingCompanies();
+        if (pending.isEmpty()) {
+            pendingCompaniesModel.addRow(new Object[]{"-", "No pending company registrations", "-", "-", "-"});
+            return;
+        }
         for (Company c : pending) {
             pendingCompaniesModel.addRow(new Object[]{
                     c.getCompanyId(),
@@ -265,8 +246,8 @@ public class AdminDashboard extends JPanel {
                     d.getDriveId(),
                     compName,
                     d.getRole(),
-                    d.getPackageOffered() + " LPA",
-                    d.getEligibleCGPA(),
+                    String.format("%.1f", d.getPackageOffered()),
+                    String.format("%.2f", d.getEligibleCGPA()),
                     d.getMaxBacklogsAllowed(),
                     d.getDriveDate(),
                     d.getVenue(),
@@ -283,30 +264,29 @@ public class AdminDashboard extends JPanel {
         int totalCompanies = dm.getTotalCompaniesCount();
         int totalDrives = dm.getTotalDrivesCount();
         double avgCgpa = dm.getAverageCGPA();
-
-        totalStudentsVal.setText(String.valueOf(totalStudents));
-        totalPlacedVal.setText(String.valueOf(totalPlaced));
-        totalCompaniesVal.setText(String.valueOf(totalCompanies));
-        totalDrivesVal.setText(String.valueOf(totalDrives));
-        avgCgpaVal.setText(String.valueOf(avgCgpa));
-
         double rate = (totalStudents > 0) ? ((double) totalPlaced / totalStudents) * 100.0 : 0.0;
-        placementRateVal.setText(String.format("%.1f%%", rate));
 
-        // Load placed candidates list
+        summaryStatsModel.setRowCount(0);
+        summaryStatsModel.addRow(new Object[]{"Total Students Enrolled", String.valueOf(totalStudents)});
+        summaryStatsModel.addRow(new Object[]{"Students Placed", String.valueOf(totalPlaced)});
+        summaryStatsModel.addRow(new Object[]{"Placement Rate", String.format("%.1f%%", rate)});
+        summaryStatsModel.addRow(new Object[]{"Registered Partner Companies", String.valueOf(totalCompanies)});
+        summaryStatsModel.addRow(new Object[]{"Total Placement Drives", String.valueOf(totalDrives)});
+        summaryStatsModel.addRow(new Object[]{"Average Student CGPA", String.format("%.2f", avgCgpa)});
+
         placedCandidatesModel.setRowCount(0);
         for (Application a : dm.getApplications()) {
             if ("Selected".equalsIgnoreCase(a.getStatus()) && a.getStudent() != null) {
-                String comp = (a.getDrive() != null && a.getDrive().getCompany() != null) 
+                String comp = (a.getDrive() != null && a.getDrive().getCompany() != null)
                         ? a.getDrive().getCompany().getCompanyName() : "N/A";
                 String role = (a.getDrive() != null) ? a.getDrive().getRole() : "N/A";
-                String pkg = (a.getDrive() != null) ? a.getDrive().getPackageOffered() + " LPA" : "N/A";
+                String pkg = (a.getDrive() != null) ? String.format("%.1f", a.getDrive().getPackageOffered()) : "N/A";
 
                 placedCandidatesModel.addRow(new Object[]{
                         a.getStudent().getUsn(),
                         a.getStudent().getName(),
                         a.getStudent().getDepartment(),
-                        a.getStudent().getCgpa(),
+                        String.format("%.2f", a.getStudent().getCgpa()),
                         comp,
                         role,
                         pkg
