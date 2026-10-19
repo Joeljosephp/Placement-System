@@ -26,6 +26,8 @@ public class DataManager {
     private static final String LEGACY_OFFICERS_FILE = DATA_DIR + "/officers.dat";
     private static final String LEGACY_INTERVIEWS_FILE = DATA_DIR + "/interviews.dat";
 
+    private final Object fileLock = new Object();
+
     private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "DataManager-Save-Worker");
         t.setDaemon(true);
@@ -87,33 +89,35 @@ public class DataManager {
     }
 
     private PlacementData readPlacementData() {
-        File primary = new File(UNIFIED_DATA_FILE);
-        if (primary.exists()) {
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(primary))) {
-                Object obj = ois.readObject();
-                if (obj instanceof PlacementData) {
-                    return (PlacementData) obj;
+        synchronized (fileLock) {
+            File primary = new File(UNIFIED_DATA_FILE);
+            if (primary.exists()) {
+                try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(primary))) {
+                    Object obj = ois.readObject();
+                    if (obj instanceof PlacementData) {
+                        return (PlacementData) obj;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Primary data file corrupted or unreadable: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.err.println("Warning: Primary data file corrupted or unreadable: " + e.getMessage());
             }
-        }
 
-        // Try backup file if primary is missing or corrupted
-        File backup = new File(BACKUP_DATA_FILE);
-        if (backup.exists()) {
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(backup))) {
-                Object obj = ois.readObject();
-                if (obj instanceof PlacementData) {
-                    System.out.println("Recovered database from backup: " + BACKUP_DATA_FILE);
-                    return (PlacementData) obj;
+            // Try backup file if primary is missing or corrupted
+            File backup = new File(BACKUP_DATA_FILE);
+            if (backup.exists()) {
+                try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(backup))) {
+                    Object obj = ois.readObject();
+                    if (obj instanceof PlacementData) {
+                        System.out.println("Recovered database from backup: " + BACKUP_DATA_FILE);
+                        return (PlacementData) obj;
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Backup data file also unreadable: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                System.err.println("Warning: Backup data file also unreadable: " + e.getMessage());
             }
-        }
 
-        return null;
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -270,25 +274,27 @@ public class DataManager {
     }
 
     private void writeAtomicPlacementData(PlacementData data) {
-        File tempFile = new File(TEMP_DATA_FILE);
-        File destFile = new File(UNIFIED_DATA_FILE);
-        File backupFile = new File(BACKUP_DATA_FILE);
+        synchronized (fileLock) {
+            File tempFile = new File(TEMP_DATA_FILE);
+            File destFile = new File(UNIFIED_DATA_FILE);
+            File backupFile = new File(BACKUP_DATA_FILE);
 
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tempFile))) {
-            oos.writeObject(data);
-            oos.flush();
-        } catch (Exception e) {
-            System.err.println("Error writing temp data file: " + e.getMessage());
-            return;
-        }
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tempFile))) {
+                oos.writeObject(data);
+                oos.flush();
+            } catch (Exception e) {
+                System.err.println("Error writing temp data file: " + e.getMessage());
+                return;
+            }
 
-        if (destFile.exists()) {
-            copyFile(destFile, backupFile);
-        }
+            if (destFile.exists()) {
+                copyFile(destFile, backupFile);
+            }
 
-        if (!tempFile.renameTo(destFile)) {
-            copyFile(tempFile, destFile);
-            tempFile.delete();
+            if (!tempFile.renameTo(destFile)) {
+                copyFile(tempFile, destFile);
+                tempFile.delete();
+            }
         }
     }
 
@@ -305,21 +311,8 @@ public class DataManager {
     }
 
     public synchronized void saveAll() {
-        PlacementData data = new PlacementData(
-                new ArrayList<>(students),
-                new ArrayList<>(companies),
-                new ArrayList<>(drives),
-                new ArrayList<>(applications),
-                new ArrayList<>(officers),
-                new ArrayList<>(interviews)
-        );
-        writeAtomicPlacementData(data);
-    }
-
-    public void saveAllAsync() {
-        final PlacementData dataCopy;
-        synchronized (this) {
-            dataCopy = new PlacementData(
+        synchronized (fileLock) {
+            PlacementData data = new PlacementData(
                     new ArrayList<>(students),
                     new ArrayList<>(companies),
                     new ArrayList<>(drives),
@@ -327,32 +320,36 @@ public class DataManager {
                     new ArrayList<>(officers),
                     new ArrayList<>(interviews)
             );
+            writeAtomicPlacementData(data);
         }
-        saveExecutor.submit(() -> writeAtomicPlacementData(dataCopy));
     }
 
-    public void saveStudents() {
-        saveAllAsync();
+    public void saveAllAsync() {
+        saveExecutor.submit(this::saveAll);
     }
 
-    public void saveCompanies() {
-        saveAllAsync();
+    public synchronized void saveStudents() {
+        saveAll();
     }
 
-    public void saveDrives() {
-        saveAllAsync();
+    public synchronized void saveCompanies() {
+        saveAll();
     }
 
-    public void saveApplications() {
-        saveAllAsync();
+    public synchronized void saveDrives() {
+        saveAll();
     }
 
-    public void saveOfficers() {
-        saveAllAsync();
+    public synchronized void saveApplications() {
+        saveAll();
     }
 
-    public void saveInterviews() {
-        saveAllAsync();
+    public synchronized void saveOfficers() {
+        saveAll();
+    }
+
+    public synchronized void saveInterviews() {
+        saveAll();
     }
 
     // Monotonic ID Generators

@@ -43,6 +43,9 @@ public class CompanyDashboard extends JPanel {
     private JTable applicantsTable;
     private DefaultTableModel applicantsTableModel;
 
+    private JTabbedPane tabbedPane;
+    private DefaultListModel<String> notifListModel;
+
     private PlacementDrive selectedDrive;
 
     public CompanyDashboard(MainFrame mainFrame) {
@@ -93,7 +96,7 @@ public class CompanyDashboard extends JPanel {
         northPanel.add(approvalBanner, BorderLayout.SOUTH);
         add(northPanel, BorderLayout.NORTH);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
         tabbedPane.setFont(Theme.FONT_BODY_BOLD);
 
         tabbedPane.addTab("Post Placement Drive", createPostDrivePanel());
@@ -316,34 +319,73 @@ public class CompanyDashboard extends JPanel {
         panel.setBackground(Theme.COLOR_SURFACE);
         panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        DefaultListModel<String> notifListModel = new DefaultListModel<>();
+        notifListModel = new DefaultListModel<>();
         JList<String> notifList = new JList<>(notifListModel);
         notifList.setFont(Theme.FONT_BODY);
         notifList.setForeground(Theme.COLOR_TEXT_PRIMARY);
 
         panel.add(new JScrollPane(notifList), BorderLayout.CENTER);
 
+        JPanel bot = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
+        bot.setOpaque(false);
+
         JButton refreshBtn = new JButton("Refresh");
         Theme.styleSecondaryButton(refreshBtn);
-        refreshBtn.addActionListener(e -> {
-            notifListModel.clear();
+        refreshBtn.addActionListener(e -> loadNotifications());
+        bot.add(refreshBtn);
+
+        JButton markReadBtn = new JButton("Mark All as Read");
+        Theme.styleSecondaryButton(markReadBtn);
+        markReadBtn.addActionListener(e -> {
             if (currentCompany != null) {
-                List<String> list = currentCompany.getNotifications();
-                if (list.isEmpty()) {
-                    notifListModel.addElement("No notifications received yet.");
-                } else {
-                    for (int i = list.size() - 1; i >= 0; i--) {
-                        notifListModel.addElement(list.get(i));
-                    }
+                currentCompany.markAllNotificationsAsRead();
+                DataManager.getInstance().saveCompanies();
+                loadNotifications();
+            }
+        });
+        bot.add(markReadBtn);
+
+        JButton clearBtn = new JButton("Clear All");
+        Theme.styleSecondaryButton(clearBtn);
+        clearBtn.addActionListener(e -> {
+            if (currentCompany != null && !currentCompany.getNotifications().isEmpty()) {
+                int confirm = JOptionPane.showConfirmDialog(
+                        this,
+                        "Clear all notifications?",
+                        "Confirm Clear",
+                        JOptionPane.YES_NO_OPTION
+                );
+                if (confirm == JOptionPane.YES_OPTION) {
+                    currentCompany.clearNotifications();
+                    DataManager.getInstance().saveCompanies();
+                    loadNotifications();
                 }
             }
         });
-        JPanel bot = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
-        bot.setOpaque(false);
-        bot.add(refreshBtn);
-        panel.add(bot, BorderLayout.SOUTH);
+        bot.add(clearBtn);
 
+        panel.add(bot, BorderLayout.SOUTH);
         return panel;
+    }
+
+    private void loadNotifications() {
+        if (notifListModel == null) return;
+        notifListModel.clear();
+        if (currentCompany == null) return;
+
+        List<com.placementsystem.model.Notification> list = currentCompany.getNotifications();
+        if (list.isEmpty()) {
+            notifListModel.addElement("No notifications received yet.");
+        } else {
+            for (int i = list.size() - 1; i >= 0; i--) {
+                notifListModel.addElement(list.get(i).toString());
+            }
+        }
+
+        int unread = currentCompany.getUnreadNotificationCount();
+        if (tabbedPane != null && tabbedPane.getTabCount() > 2) {
+            tabbedPane.setTitleAt(2, unread > 0 ? "Notifications (" + unread + ")" : "Notifications");
+        }
     }
 
     private void handlePostDrive() {
@@ -372,16 +414,23 @@ public class CompanyDashboard extends JPanel {
             roleErrorLabel.setText("Job role is required.");
             invalid = true;
         }
+
         if (date.isEmpty()) {
             dateErrorLabel.setText("Drive date is required.");
+            invalid = true;
+        } else if (!com.placementsystem.util.Validator.isValidDateString(date)) {
+            dateErrorLabel.setText("Invalid date format. Expected YYYY-MM-DD.");
+            invalid = true;
+        } else if (!com.placementsystem.util.Validator.isFutureOrToday(date)) {
+            dateErrorLabel.setText("Drive date cannot be in the past.");
             invalid = true;
         }
 
         double pkg = 0.0;
         try {
             pkg = Double.parseDouble(packageField.getText().trim());
-            if (pkg <= 0.0) {
-                packageErrorLabel.setText("Package must be greater than 0.");
+            if (!com.placementsystem.util.Validator.isValidPackage(pkg)) {
+                packageErrorLabel.setText("Package must be between 0.5 and 150.0 LPA.");
                 invalid = true;
             }
         } catch (NumberFormatException nfe) {
@@ -392,7 +441,7 @@ public class CompanyDashboard extends JPanel {
         double cgpa = 0.0;
         try {
             cgpa = Double.parseDouble(cgpaField.getText().trim());
-            if (cgpa < 0.0 || cgpa > 10.0) {
+            if (!com.placementsystem.util.Validator.isValidCgpa(cgpa)) {
                 cgpaErrorLabel.setText("CGPA must be between 0.0 and 10.0.");
                 invalid = true;
             }
@@ -404,8 +453,8 @@ public class CompanyDashboard extends JPanel {
         int backlogs = 0;
         try {
             backlogs = Integer.parseInt(backlogsField.getText().trim());
-            if (backlogs < 0) {
-                backlogsErrorLabel.setText("Backlogs cannot be negative.");
+            if (!com.placementsystem.util.Validator.isValidBacklogs(backlogs)) {
+                backlogsErrorLabel.setText("Backlogs must be between 0 and 50.");
                 invalid = true;
             }
         } catch (NumberFormatException nfe) {
@@ -420,7 +469,7 @@ public class CompanyDashboard extends JPanel {
         }
 
         try {
-            String driveId = "DRV" + (DataManager.getInstance().getDrives().size() + 201);
+            String driveId = DataManager.getInstance().nextDriveId();
             PlacementDrive drive = new PlacementDrive(driveId, currentCompany, role, pkg, cgpa, backlogs, date);
 
             if (venue.isEmpty()) {
@@ -482,6 +531,8 @@ public class CompanyDashboard extends JPanel {
     }
 
     private void updateApplicantStatus(String applicationId, String newStatus) {
+        if (currentCompany == null) return;
+
         Application target = null;
         for (Application a : DataManager.getInstance().getApplications()) {
             if (a.getApplicationId().equalsIgnoreCase(applicationId)) {
@@ -490,17 +541,41 @@ public class CompanyDashboard extends JPanel {
             }
         }
 
-        if (target != null) {
+        if (target == null) {
+            JOptionPane.showMessageDialog(this, "Application not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Authorization check: recruiter may only update applicants for their own company's drives
+        if (target.getDrive() == null || target.getDrive().getCompany() == null
+                || !target.getDrive().getCompany().getCompanyId().equalsIgnoreCase(currentCompany.getCompanyId())) {
+            JOptionPane.showMessageDialog(this, "Unauthorized: You can only update applications for your own company drives.", "Access Denied", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!Application.isValidTransition(target.getStatus(), newStatus)) {
+            JOptionPane.showMessageDialog(this,
+                    "Invalid status transition. Cannot move application from '" + target.getStatus() + "' to '" + newStatus + "'.",
+                    "Invalid Transition",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
             DataManager.getInstance().updateApplicationStatus(target, newStatus);
             JOptionPane.showMessageDialog(this,
-                    "Status updated to '" + newStatus + "'. Notification sent to candidate.",
-                    "Candidate Notified",
+                    "Status updated to '" + newStatus + "'. Candidate has been notified.",
+                    "Status Updated",
                     JOptionPane.INFORMATION_MESSAGE);
             loadApplicantsForSelectedDrive();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void showScheduleInterviewDialog(String applicationId) {
+        if (currentCompany == null) return;
+
         Application target = null;
         for (Application a : DataManager.getInstance().getApplications()) {
             if (a.getApplicationId().equalsIgnoreCase(applicationId)) {
@@ -511,11 +586,31 @@ public class CompanyDashboard extends JPanel {
 
         if (target == null) return;
 
+        // Authorization check
+        if (target.getDrive() == null || target.getDrive().getCompany() == null
+                || !target.getDrive().getCompany().getCompanyId().equalsIgnoreCase(currentCompany.getCompanyId())) {
+            JOptionPane.showMessageDialog(this, "Unauthorized: You can only schedule interviews for your own drives.", "Access Denied", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // Prevent scheduling for rejected applicants
+        if ("Rejected".equalsIgnoreCase(target.getStatus())) {
+            JOptionPane.showMessageDialog(this, "Cannot schedule an interview for a rejected candidate.", "Invalid Action", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Schedule Interview Round", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
         dialog.setSize(440, 320);
         dialog.setLocationRelativeTo(this);
+
+        // Escape key to dismiss dialog
+        dialog.getRootPane().registerKeyboardAction(
+                ev -> dialog.dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
 
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(6, 12, 6, 12);
@@ -558,6 +653,8 @@ public class CompanyDashboard extends JPanel {
 
         JButton saveBtn = new JButton("Confirm Schedule");
         Theme.stylePrimaryButton(saveBtn);
+        dialog.getRootPane().setDefaultButton(saveBtn);
+
         Application finalTarget = target;
         saveBtn.addActionListener(ev -> {
             roundErr.setText(" ");
@@ -581,23 +678,42 @@ public class CompanyDashboard extends JPanel {
                 return;
             }
 
-            String intId = "INT" + (DataManager.getInstance().getInterviews().size() + 401);
-            Interview interview = new Interview(intId, finalTarget, round, "Scheduled", dt);
-            DataManager.getInstance().addInterview(interview);
+            try {
+                String intId = DataManager.getInstance().nextInterviewId();
+                Interview interview = new Interview(intId, finalTarget, round, "Scheduled", dt);
+                DataManager.getInstance().addInterview(interview);
 
-            if ("Applied".equalsIgnoreCase(finalTarget.getStatus())) {
-                DataManager.getInstance().updateApplicationStatus(finalTarget, "Shortlisted");
+                if ("Applied".equalsIgnoreCase(finalTarget.getStatus())) {
+                    DataManager.getInstance().updateApplicationStatus(finalTarget, "Shortlisted");
+                }
+
+                JOptionPane.showMessageDialog(dialog, "Interview scheduled. Candidate has been notified.", "Interview Scheduled", JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
+                loadApplicantsForSelectedDrive();
+            } catch (Exception ex) {
+                roundErr.setText(ex.getMessage());
+                dialog.revalidate();
+                dialog.repaint();
             }
-
-            JOptionPane.showMessageDialog(dialog, "Interview scheduled. Candidate has been notified.", "Interview Scheduled", JOptionPane.INFORMATION_MESSAGE);
-            dialog.dispose();
-            loadApplicantsForSelectedDrive();
         });
 
         g.gridx = 0; g.gridy = 3; g.gridwidth = 2;
         dialog.add(saveBtn, g);
 
         dialog.setVisible(true);
+    }
+
+    public void clearSession() {
+        this.currentCompany = null;
+        this.selectedDrive = null;
+        if (companyNameLabel != null) companyNameLabel.setText("Company Portal");
+        if (statusBadgeLabel != null) {
+            statusBadgeLabel.setText("Status: Unknown");
+            statusBadgeLabel.setForeground(Theme.COLOR_TEXT_PRIMARY);
+        }
+        if (roleField != null) roleField.setText("");
+        if (drivesTableModel != null) drivesTableModel.setRowCount(0);
+        if (applicantsTableModel != null) applicantsTableModel.setRowCount(0);
     }
 
     public void refreshData() {
@@ -626,6 +742,7 @@ public class CompanyDashboard extends JPanel {
         revalidate();
         repaint();
         loadPostedDrives();
+        loadNotifications();
     }
 
     private void loadPostedDrives() {

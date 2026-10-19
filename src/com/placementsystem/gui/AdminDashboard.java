@@ -11,6 +11,9 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
 import java.util.List;
 
 public class AdminDashboard extends JPanel {
@@ -19,8 +22,9 @@ public class AdminDashboard extends JPanel {
     private MainFrame mainFrame;
     private PlacementOfficer currentOfficer;
 
-    private JTable pendingCompaniesTable;
-    private DefaultTableModel pendingCompaniesModel;
+    private JComboBox<String> companyFilterCombo;
+    private JTable companiesTable;
+    private DefaultTableModel companiesModel;
 
     private JTable allDrivesTable;
     private DefaultTableModel allDrivesModel;
@@ -44,46 +48,77 @@ public class AdminDashboard extends JPanel {
         refreshData();
     }
 
+    public void clearSession() {
+        this.currentOfficer = null;
+        if (companiesModel != null) companiesModel.setRowCount(0);
+        if (allDrivesModel != null) allDrivesModel.setRowCount(0);
+        if (summaryStatsModel != null) summaryStatsModel.setRowCount(0);
+        if (placedCandidatesModel != null) placedCandidatesModel.setRowCount(0);
+    }
+
     private void initComponents() {
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.setFont(Theme.FONT_BODY_BOLD);
 
-        tabbedPane.addTab("Pending Company Approvals", createPendingApprovalsTab());
+        tabbedPane.addTab("Company Verification", createCompanyVerificationTab());
         tabbedPane.addTab("All Placement Drives", createAllDrivesTab());
         tabbedPane.addTab("Placement Analytics", createAnalyticsTab());
 
         add(tabbedPane, BorderLayout.CENTER);
     }
 
-    private JPanel createPendingApprovalsTab() {
+    private JPanel createCompanyVerificationTab() {
         JPanel panel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         panel.setBackground(Theme.COLOR_SURFACE);
         panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        JLabel header = new JLabel("Company Verification Queue", SwingConstants.LEFT);
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+
+        JLabel header = new JLabel("Company Approvals and Directory", SwingConstants.LEFT);
         header.setFont(Theme.FONT_TITLE);
         header.setForeground(Theme.COLOR_TEXT_PRIMARY);
-        panel.add(header, BorderLayout.NORTH);
+        topBar.add(header, BorderLayout.WEST);
 
-        String[] cols = {"Company ID", "Company Name", "Industry Sector", "Official Email", "Status"};
-        pendingCompaniesModel = new DefaultTableModel(cols, 0) {
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
+        filterPanel.setOpaque(false);
+        JLabel filterLbl = new JLabel("View:");
+        filterLbl.setFont(Theme.FONT_BODY_BOLD);
+        filterPanel.add(filterLbl);
+
+        String[] filters = {"Pending Verification", "Approved Companies", "Rejected Companies", "All Companies"};
+        companyFilterCombo = new JComboBox<>(filters);
+        companyFilterCombo.setFont(Theme.FONT_BODY);
+        companyFilterCombo.addActionListener(e -> loadCompanies());
+        filterPanel.add(companyFilterCombo);
+
+        topBar.add(filterPanel, BorderLayout.EAST);
+        panel.add(topBar, BorderLayout.NORTH);
+
+        String[] cols = {"Company ID", "Company Name", "Industry Sector", "Official Email", "Status", "Notes / Rejection Reason"};
+        companiesModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
-        pendingCompaniesTable = new JTable(pendingCompaniesModel);
-        Theme.styleTable(pendingCompaniesTable);
-        pendingCompaniesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        panel.add(new JScrollPane(pendingCompaniesTable), BorderLayout.CENTER);
+        companiesTable = new JTable(companiesModel);
+        Theme.styleTable(companiesTable);
+        companiesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        panel.add(new JScrollPane(companiesTable), BorderLayout.CENTER);
 
         JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         actionPanel.setOpaque(false);
 
         JButton refreshBtn = new JButton("Refresh");
         Theme.styleSecondaryButton(refreshBtn);
-        refreshBtn.addActionListener(e -> loadPendingCompanies());
+        refreshBtn.addActionListener(e -> loadCompanies());
         actionPanel.add(refreshBtn);
 
-        JButton approveBtn = new JButton("Approve Selected Company");
+        JButton rejectBtn = new JButton("Reject Selected");
+        Theme.styleSecondaryButton(rejectBtn);
+        rejectBtn.addActionListener(e -> rejectSelectedCompany());
+        actionPanel.add(rejectBtn);
+
+        JButton approveBtn = new JButton("Approve Selected");
         Theme.stylePrimaryButton(approveBtn);
         approveBtn.addActionListener(e -> approveSelectedCompany());
         actionPanel.add(approveBtn);
@@ -134,7 +169,6 @@ public class AdminDashboard extends JPanel {
         panel.setBackground(Theme.COLOR_SURFACE);
         panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
-        // Two-column summary metrics table replacing the 3x2 card grid
         JPanel summaryPanel = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         summaryPanel.setOpaque(false);
 
@@ -156,14 +190,21 @@ public class AdminDashboard extends JPanel {
         summaryPanel.add(new JScrollPane(summaryStatsTable), BorderLayout.CENTER);
         panel.add(summaryPanel, BorderLayout.NORTH);
 
-        // Placed candidates table
         JPanel tableCard = new JPanel(new BorderLayout(Theme.SPACING_SMALL, Theme.SPACING_SMALL));
         tableCard.setOpaque(false);
 
+        JPanel tableHeader = new JPanel(new BorderLayout());
+        tableHeader.setOpaque(false);
         JLabel placedTitle = new JLabel("Placed Candidates Directory");
         placedTitle.setFont(Theme.FONT_TITLE);
         placedTitle.setForeground(Theme.COLOR_TEXT_PRIMARY);
-        tableCard.add(placedTitle, BorderLayout.NORTH);
+        tableHeader.add(placedTitle, BorderLayout.WEST);
+
+        JButton exportCsvBtn = new JButton("Export Placed Students (CSV)");
+        Theme.styleSecondaryButton(exportCsvBtn);
+        exportCsvBtn.addActionListener(e -> exportPlacedStudentsToCsv());
+        tableHeader.add(exportCsvBtn, BorderLayout.EAST);
+        tableCard.add(tableHeader, BorderLayout.NORTH);
 
         String[] cols = {"Student USN", "Student Name", "Department", "CGPA", "Company", "Job Role", "CTC (LPA)"};
         placedCandidatesModel = new DefaultTableModel(cols, 0) {
@@ -184,13 +225,15 @@ public class AdminDashboard extends JPanel {
     }
 
     private void approveSelectedCompany() {
-        int selectedRow = pendingCompaniesTable.getSelectedRow();
+        int selectedRow = companiesTable.getSelectedRow();
         if (selectedRow == -1) {
             JOptionPane.showMessageDialog(this, "Please select a company to approve.", "Selection Required", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        String compId = (String) pendingCompaniesModel.getValueAt(selectedRow, 0);
+        String compId = (String) companiesModel.getValueAt(selectedRow, 0);
+        if ("-".equals(compId)) return;
+
         Company target = null;
         for (Company c : DataManager.getInstance().getCompanies()) {
             if (c.getCompanyId().equalsIgnoreCase(compId)) {
@@ -199,7 +242,26 @@ public class AdminDashboard extends JPanel {
             }
         }
 
-        if (target != null && currentOfficer != null) {
+        if (target == null) {
+            JOptionPane.showMessageDialog(this, "Company record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (target.isApproved()) {
+            JOptionPane.showMessageDialog(this, "Company '" + target.getCompanyName() + "' is already approved.", "Information", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Approve company '" + target.getCompanyName() + "' for campus recruitment?",
+                "Confirm Approval",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE
+        );
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        if (currentOfficer != null) {
             currentOfficer.approveCompany(target);
             DataManager.getInstance().updateCompany(target);
 
@@ -208,31 +270,137 @@ public class AdminDashboard extends JPanel {
                     "Success",
                     JOptionPane.INFORMATION_MESSAGE);
 
-            loadPendingCompanies();
+            loadCompanies();
             loadAnalytics();
         }
     }
 
+    private void rejectSelectedCompany() {
+        int selectedRow = companiesTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a company to reject.", "Selection Required", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String compId = (String) companiesModel.getValueAt(selectedRow, 0);
+        if ("-".equals(compId)) return;
+
+        Company target = null;
+        for (Company c : DataManager.getInstance().getCompanies()) {
+            if (c.getCompanyId().equalsIgnoreCase(compId)) {
+                target = c;
+                break;
+            }
+        }
+
+        if (target == null) {
+            JOptionPane.showMessageDialog(this, "Company record not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (target.isRejected()) {
+            JOptionPane.showMessageDialog(this, "Company is already rejected.", "Information", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        String reason = JOptionPane.showInputDialog(
+                this,
+                "Enter reason for rejecting '" + target.getCompanyName() + "':",
+                "Reject Company Registration",
+                JOptionPane.WARNING_MESSAGE
+        );
+
+        if (reason == null || reason.trim().isEmpty()) {
+            return;
+        }
+
+        if (currentOfficer != null) {
+            currentOfficer.rejectCompany(target, reason.trim());
+            DataManager.getInstance().updateCompany(target);
+
+            JOptionPane.showMessageDialog(this,
+                    "Company '" + target.getCompanyName() + "' has been rejected.",
+                    "Company Rejected",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+            loadCompanies();
+            loadAnalytics();
+        }
+    }
+
+    private void exportPlacedStudentsToCsv() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Placed Students CSV");
+        fileChooser.setSelectedFile(new File("placed_students.csv"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File fileToSave = fileChooser.getSelectedFile();
+        if (!fileToSave.getName().toLowerCase().endsWith(".csv")) {
+            fileToSave = new File(fileToSave.getParentFile(), fileToSave.getName() + ".csv");
+        }
+
+        try (PrintWriter writer = new PrintWriter(new FileWriter(fileToSave))) {
+            writer.println("Student USN,Student Name,Department,CGPA,Company,Job Role,CTC (LPA)");
+            for (int r = 0; r < placedCandidatesModel.getRowCount(); r++) {
+                StringBuilder line = new StringBuilder();
+                for (int c = 0; c < placedCandidatesModel.getColumnCount(); c++) {
+                    String val = String.valueOf(placedCandidatesModel.getValueAt(r, c));
+                    if (val.contains(",") || val.contains("\"")) {
+                        val = "\"" + val.replace("\"", "\"\"") + "\"";
+                    }
+                    line.append(val);
+                    if (c < placedCandidatesModel.getColumnCount() - 1) {
+                        line.append(",");
+                    }
+                }
+                writer.println(line.toString());
+            }
+            JOptionPane.showMessageDialog(this, "CSV exported successfully to:\n" + fileToSave.getAbsolutePath(), "Export Complete", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to export CSV: " + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     public void refreshData() {
-        loadPendingCompanies();
+        loadCompanies();
         loadAllDrives();
         loadAnalytics();
     }
 
-    private void loadPendingCompanies() {
-        pendingCompaniesModel.setRowCount(0);
-        List<Company> pending = DataManager.getInstance().getPendingCompanies();
-        if (pending.isEmpty()) {
-            pendingCompaniesModel.addRow(new Object[]{"-", "No pending company registrations", "-", "-", "-"});
+    private void loadCompanies() {
+        companiesModel.setRowCount(0);
+        String filter = companyFilterCombo != null ? (String) companyFilterCombo.getSelectedItem() : "Pending Verification";
+
+        List<Company> list;
+        if ("Approved Companies".equals(filter)) {
+            list = DataManager.getInstance().getApprovedCompanies();
+        } else if ("Rejected Companies".equals(filter)) {
+            list = DataManager.getInstance().getRejectedCompanies();
+        } else if ("All Companies".equals(filter)) {
+            list = DataManager.getInstance().getCompanies();
+        } else {
+            list = DataManager.getInstance().getPendingCompanies();
+        }
+
+        if (list.isEmpty()) {
+            companiesModel.addRow(new Object[]{"-", "No companies in this category", "-", "-", "-", "-"});
             return;
         }
-        for (Company c : pending) {
-            pendingCompaniesModel.addRow(new Object[]{
+
+        for (Company c : list) {
+            String status = c.isApproved() ? "Approved" : (c.isRejected() ? "Rejected" : "Pending Verification");
+            String reason = c.getRejectionReason() != null ? c.getRejectionReason() : "-";
+            companiesModel.addRow(new Object[]{
                     c.getCompanyId(),
                     c.getCompanyName(),
                     c.getIndustryType(),
                     c.getEmail(),
-                    "Pending Verification"
+                    status,
+                    reason
             });
         }
     }
@@ -268,7 +436,7 @@ public class AdminDashboard extends JPanel {
 
         summaryStatsModel.setRowCount(0);
         summaryStatsModel.addRow(new Object[]{"Total Students Enrolled", String.valueOf(totalStudents)});
-        summaryStatsModel.addRow(new Object[]{"Students Placed", String.valueOf(totalPlaced)});
+        summaryStatsModel.addRow(new Object[]{"Students Placed (Distinct)", String.valueOf(totalPlaced)});
         summaryStatsModel.addRow(new Object[]{"Placement Rate", String.format("%.1f%%", rate)});
         summaryStatsModel.addRow(new Object[]{"Registered Partner Companies", String.valueOf(totalCompanies)});
         summaryStatsModel.addRow(new Object[]{"Total Placement Drives", String.valueOf(totalDrives)});

@@ -14,7 +14,7 @@ public class Student extends Person implements Notifiable {
     private int backlogs;
     private String passwordHash;
     private String salt;
-    private List<String> notifications;
+    private List<Notification> notifications;
 
     public Student() {
         super();
@@ -99,11 +99,36 @@ public class Student extends Person implements Notifiable {
         return false;
     }
 
-    public List<String> getNotifications() {
+    @SuppressWarnings("unchecked")
+    public List<Notification> getNotifications() {
         if (notifications == null) {
             notifications = new ArrayList<>();
         }
+        for (int i = 0; i < notifications.size(); i++) {
+            Object obj = notifications.get(i);
+            if (obj instanceof String) {
+                notifications.set(i, new Notification("N" + (i + 1), (String) obj));
+            }
+        }
         return notifications;
+    }
+
+    public int getUnreadNotificationCount() {
+        int count = 0;
+        for (Notification n : getNotifications()) {
+            if (!n.isRead()) count++;
+        }
+        return count;
+    }
+
+    public void markAllNotificationsAsRead() {
+        for (Notification n : getNotifications()) {
+            n.setRead(true);
+        }
+    }
+
+    public void clearNotifications() {
+        getNotifications().clear();
     }
 
     @Override
@@ -113,7 +138,8 @@ public class Student extends Person implements Notifiable {
 
     @Override
     public void sendNotification(String message) {
-        getNotifications().add(message);
+        String id = "N" + (getNotifications().size() + 1);
+        getNotifications().add(new Notification(id, message));
     }
 
     @Override

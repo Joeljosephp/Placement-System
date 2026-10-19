@@ -4,14 +4,18 @@ import com.placementsystem.MainFrame;
 import com.placementsystem.exception.DuplicateApplicationException;
 import com.placementsystem.exception.IneligibleStudentException;
 import com.placementsystem.model.Application;
+import com.placementsystem.model.Notification;
 import com.placementsystem.model.PlacementDrive;
 import com.placementsystem.model.Student;
 import com.placementsystem.util.DataManager;
+import com.placementsystem.util.Validator;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class StudentProfilePanel extends JPanel {
@@ -29,16 +33,25 @@ public class StudentProfilePanel extends JPanel {
     private JTextField backlogsField;
 
     private JLabel nameErrorLabel;
+    private JLabel phoneErrorLabel;
+    private JLabel deptErrorLabel;
     private JLabel cgpaErrorLabel;
     private JLabel backlogsErrorLabel;
 
     private JButton updateProfileButton;
 
+    private JTabbedPane tabbedPane;
+
+    private JTextField driveSearchField;
+    private JCheckBox eligibleOnlyCheckBox;
     private JTable drivesTable;
     private DefaultTableModel drivesTableModel;
+
     private JTable applicationsTable;
     private DefaultTableModel applicationsTableModel;
     private DefaultListModel<String> notificationListModel;
+
+    private List<PlacementDrive> currentRenderedDrives = new ArrayList<>();
 
     public StudentProfilePanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
@@ -52,6 +65,21 @@ public class StudentProfilePanel extends JPanel {
     public void setCurrentStudent(Student student) {
         this.currentStudent = student;
         refreshData();
+    }
+
+    public void clearSession() {
+        this.currentStudent = null;
+        if (usnField != null) usnField.setText("");
+        if (nameField != null) nameField.setText("");
+        if (emailField != null) emailField.setText("");
+        if (phoneField != null) phoneField.setText("");
+        if (deptField != null) deptField.setText("");
+        if (cgpaField != null) cgpaField.setText("");
+        if (backlogsField != null) backlogsField.setText("");
+        if (drivesTableModel != null) drivesTableModel.setRowCount(0);
+        if (applicationsTableModel != null) applicationsTableModel.setRowCount(0);
+        if (notificationListModel != null) notificationListModel.clear();
+        if (tabbedPane != null) tabbedPane.setTitleAt(2, "Notifications");
     }
 
     public boolean hasUnsavedChanges() {
@@ -87,7 +115,7 @@ public class StudentProfilePanel extends JPanel {
         JPanel profileCard = createProfileCard();
         add(profileCard, BorderLayout.WEST);
 
-        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane = new JTabbedPane();
         tabbedPane.setFont(Theme.FONT_BODY_BOLD);
 
         tabbedPane.addTab("Available Placement Drives", createDrivesPanel());
@@ -142,14 +170,16 @@ public class StudentProfilePanel extends JPanel {
         backlogsField.setFont(Theme.FONT_BODY);
 
         nameErrorLabel = Theme.createInlineValidationLabel();
+        phoneErrorLabel = Theme.createInlineValidationLabel();
+        deptErrorLabel = Theme.createInlineValidationLabel();
         cgpaErrorLabel = Theme.createInlineValidationLabel();
         backlogsErrorLabel = Theme.createInlineValidationLabel();
 
         addField(panel, gbc, "USN:", usnField);
         addFieldWithValidation(panel, gbc, "Full Name:", nameField, nameErrorLabel);
         addField(panel, gbc, "Email:", emailField);
-        addField(panel, gbc, "Phone:", phoneField);
-        addField(panel, gbc, "Department:", deptField);
+        addFieldWithValidation(panel, gbc, "Phone:", phoneField, phoneErrorLabel);
+        addFieldWithValidation(panel, gbc, "Department:", deptField, deptErrorLabel);
         addFieldWithValidation(panel, gbc, "CGPA (0.0 to 10.0):", cgpaField, cgpaErrorLabel);
         addFieldWithValidation(panel, gbc, "Backlogs:", backlogsField, backlogsErrorLabel);
 
@@ -186,6 +216,31 @@ public class StudentProfilePanel extends JPanel {
         panel.setBackground(Theme.COLOR_SURFACE);
         panel.setBorder(new EmptyBorder(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL));
 
+        JPanel filterBar = new JPanel(new FlowLayout(FlowLayout.LEFT, Theme.SPACING_SMALL, 0));
+        filterBar.setOpaque(false);
+
+        JLabel searchLbl = new JLabel("Search Drives:");
+        searchLbl.setFont(Theme.FONT_BODY_BOLD);
+        filterBar.add(searchLbl);
+
+        driveSearchField = new JTextField(14);
+        driveSearchField.setFont(Theme.FONT_BODY);
+        driveSearchField.addActionListener(e -> loadDrives());
+        filterBar.add(driveSearchField);
+
+        JButton filterBtn = new JButton("Filter");
+        Theme.styleSecondaryButton(filterBtn);
+        filterBtn.addActionListener(e -> loadDrives());
+        filterBar.add(filterBtn);
+
+        eligibleOnlyCheckBox = new JCheckBox("Show only drives I am eligible for");
+        eligibleOnlyCheckBox.setFont(Theme.FONT_BODY);
+        eligibleOnlyCheckBox.setOpaque(false);
+        eligibleOnlyCheckBox.addActionListener(e -> loadDrives());
+        filterBar.add(eligibleOnlyCheckBox);
+
+        panel.add(filterBar, BorderLayout.NORTH);
+
         String[] cols = {"Drive ID", "Company", "Role", "Package (LPA)", "Min CGPA", "Max Backlogs", "Date", "Venue"};
         drivesTableModel = new DefaultTableModel(cols, 0) {
             @Override
@@ -197,12 +252,11 @@ public class StudentProfilePanel extends JPanel {
         Theme.styleTable(drivesTable);
         drivesTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Right-align numeric columns
-        drivesTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
-        drivesTable.getColumnModel().getColumn(4).setCellRenderer(Theme.getRightAlignRenderer());
-        drivesTable.getColumnModel().getColumn(5).setCellRenderer(Theme.getRightAlignRenderer());
+        DriveEligibilityRenderer customRenderer = new DriveEligibilityRenderer();
+        for (int i = 0; i < drivesTable.getColumnCount(); i++) {
+            drivesTable.getColumnModel().getColumn(i).setCellRenderer(customRenderer);
+        }
 
-        // Sensible column widths
         drivesTable.getColumnModel().getColumn(0).setPreferredWidth(80);
         drivesTable.getColumnModel().getColumn(1).setPreferredWidth(140);
         drivesTable.getColumnModel().getColumn(2).setPreferredWidth(160);
@@ -217,7 +271,11 @@ public class StudentProfilePanel extends JPanel {
 
         JButton refreshBtn = new JButton("Refresh Drives");
         Theme.styleSecondaryButton(refreshBtn);
-        refreshBtn.addActionListener(e -> loadDrives());
+        refreshBtn.addActionListener(e -> {
+            driveSearchField.setText("");
+            eligibleOnlyCheckBox.setSelected(false);
+            loadDrives();
+        });
 
         JButton applyBtn = new JButton("Apply for Selected Drive");
         Theme.stylePrimaryButton(applyBtn);
@@ -228,6 +286,57 @@ public class StudentProfilePanel extends JPanel {
         panel.add(bottomBar, BorderLayout.SOUTH);
 
         return panel;
+    }
+
+    private class DriveEligibilityRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int col) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+
+            if (col == 3 || col == 4 || col == 5) {
+                setHorizontalAlignment(SwingConstants.RIGHT);
+            } else {
+                setHorizontalAlignment(SwingConstants.LEFT);
+            }
+
+            if (row >= 0 && row < currentRenderedDrives.size()) {
+                PlacementDrive drive = currentRenderedDrives.get(row);
+                boolean deadlinePassed = drive.isDeadlinePassed();
+                boolean eligible = (currentStudent != null) && drive.checkEligibility(currentStudent);
+                boolean alreadyApplied = false;
+
+                if (currentStudent != null) {
+                    for (Application a : DataManager.getInstance().getApplicationsForStudent(currentStudent)) {
+                        if (a.getDrive() != null && a.getDrive().getDriveId().equalsIgnoreCase(drive.getDriveId())) {
+                            alreadyApplied = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isSelected) {
+                    if (alreadyApplied) {
+                        c.setForeground(new Color(0x2B, 0x6C, 0xB0)); // soft blue
+                        setToolTipText("Already submitted an application for this drive.");
+                    } else if (deadlinePassed) {
+                        c.setForeground(Theme.COLOR_TEXT_MUTED);
+                        setToolTipText("Application deadline has passed (" + drive.getDriveDate() + ").");
+                    } else if (!eligible) {
+                        c.setForeground(Theme.COLOR_TEXT_MUTED);
+                        setToolTipText("Ineligible: Requires CGPA >= " + drive.getEligibleCGPA()
+                                + " and backlogs <= " + drive.getMaxBacklogsAllowed()
+                                + " (Your CGPA: " + (currentStudent != null ? currentStudent.getCgpa() : 0.0)
+                                + ", backlogs: " + (currentStudent != null ? currentStudent.getBacklogs() : 0) + ")");
+                    } else {
+                        c.setForeground(Theme.COLOR_TEXT_PRIMARY);
+                        setToolTipText("You meet all eligibility criteria for this placement drive.");
+                    }
+                }
+            }
+
+            return c;
+        }
     }
 
     private JPanel createApplicationsPanel() {
@@ -244,17 +353,24 @@ public class StudentProfilePanel extends JPanel {
         };
         applicationsTable = new JTable(applicationsTableModel);
         Theme.styleTable(applicationsTable);
+        applicationsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // Right-align Package
         applicationsTable.getColumnModel().getColumn(3).setCellRenderer(Theme.getRightAlignRenderer());
 
         panel.add(new JScrollPane(applicationsTable), BorderLayout.CENTER);
 
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
+
+        JButton withdrawBtn = new JButton("Withdraw Application");
+        Theme.styleSecondaryButton(withdrawBtn);
+        withdrawBtn.addActionListener(e -> withdrawSelectedApplication());
+
         JButton refreshBtn = new JButton("Refresh");
         Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadApplications());
+
+        bottomBar.add(withdrawBtn);
         bottomBar.add(refreshBtn);
         panel.add(bottomBar, BorderLayout.SOUTH);
 
@@ -277,10 +393,42 @@ public class StudentProfilePanel extends JPanel {
 
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, Theme.SPACING_SMALL, 0));
         bottomBar.setOpaque(false);
+
         JButton refreshBtn = new JButton("Refresh");
         Theme.styleSecondaryButton(refreshBtn);
         refreshBtn.addActionListener(e -> loadNotifications());
         bottomBar.add(refreshBtn);
+
+        JButton markReadBtn = new JButton("Mark All as Read");
+        Theme.styleSecondaryButton(markReadBtn);
+        markReadBtn.addActionListener(e -> {
+            if (currentStudent != null) {
+                currentStudent.markAllNotificationsAsRead();
+                DataManager.getInstance().saveStudents();
+                loadNotifications();
+            }
+        });
+        bottomBar.add(markReadBtn);
+
+        JButton clearBtn = new JButton("Clear All");
+        Theme.styleSecondaryButton(clearBtn);
+        clearBtn.addActionListener(e -> {
+            if (currentStudent != null && !currentStudent.getNotifications().isEmpty()) {
+                int confirm = JOptionPane.showConfirmDialog(
+                        this,
+                        "Clear all notifications?",
+                        "Confirm Clear",
+                        JOptionPane.YES_NO_OPTION
+                );
+                if (confirm == JOptionPane.YES_OPTION) {
+                    currentStudent.clearNotifications();
+                    DataManager.getInstance().saveStudents();
+                    loadNotifications();
+                }
+            }
+        });
+        bottomBar.add(clearBtn);
+
         panel.add(bottomBar, BorderLayout.SOUTH);
 
         return panel;
@@ -289,6 +437,8 @@ public class StudentProfilePanel extends JPanel {
     private void updateProfile() {
         if (currentStudent == null) return;
         nameErrorLabel.setText(" ");
+        phoneErrorLabel.setText(" ");
+        deptErrorLabel.setText(" ");
         cgpaErrorLabel.setText(" ");
         backlogsErrorLabel.setText(" ");
 
@@ -302,10 +452,23 @@ public class StudentProfilePanel extends JPanel {
             invalid = true;
         }
 
+        if (phone.isEmpty()) {
+            phoneErrorLabel.setText("Phone number is required.");
+            invalid = true;
+        } else if (!Validator.isValidPhone(phone)) {
+            phoneErrorLabel.setText("Enter valid 10-digit mobile number.");
+            invalid = true;
+        }
+
+        if (dept.isEmpty()) {
+            deptErrorLabel.setText("Department cannot be blank.");
+            invalid = true;
+        }
+
         double cgpa = 0.0;
         try {
             cgpa = Double.parseDouble(cgpaField.getText().trim());
-            if (cgpa < 0.0 || cgpa > 10.0) {
+            if (!Validator.isValidCgpa(cgpa)) {
                 cgpaErrorLabel.setText("CGPA must be between 0.0 and 10.0.");
                 invalid = true;
             }
@@ -317,8 +480,8 @@ public class StudentProfilePanel extends JPanel {
         int backlogs = 0;
         try {
             backlogs = Integer.parseInt(backlogsField.getText().trim());
-            if (backlogs < 0) {
-                backlogsErrorLabel.setText("Backlogs cannot be negative.");
+            if (!Validator.isValidBacklogs(backlogs)) {
+                backlogsErrorLabel.setText("Backlogs must be between 0 and 50.");
                 invalid = true;
             }
         } catch (NumberFormatException ex) {
@@ -344,6 +507,7 @@ public class StudentProfilePanel extends JPanel {
             mainFrame.updateActiveUserDisplay(currentStudent.getName() + " (Student)");
             revalidate();
             repaint();
+            loadDrives();
         } catch (IllegalArgumentException ex) {
             cgpaErrorLabel.setText(ex.getMessage());
             revalidate();
@@ -353,32 +517,20 @@ public class StudentProfilePanel extends JPanel {
 
     private void applySelectedDrive() {
         int selectedRow = drivesTable.getSelectedRow();
-        if (selectedRow == -1) {
+        if (selectedRow == -1 || selectedRow >= currentRenderedDrives.size()) {
             JOptionPane.showMessageDialog(this, "Please select a placement drive from the table first.", "Selection Required", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
-        String driveId = (String) drivesTableModel.getValueAt(selectedRow, 0);
-        PlacementDrive selectedDrive = null;
-        for (PlacementDrive d : DataManager.getInstance().getDrives()) {
-            if (d.getDriveId().equalsIgnoreCase(driveId)) {
-                selectedDrive = d;
-                break;
-            }
-        }
-
-        if (selectedDrive == null) {
-            JOptionPane.showMessageDialog(this, "Selected drive could not be found.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+        PlacementDrive selectedDrive = currentRenderedDrives.get(selectedRow);
 
         try {
-            // Checked exception handling: IneligibleStudentException & DuplicateApplicationException
             DataManager.getInstance().applyToDrive(currentStudent, selectedDrive);
             JOptionPane.showMessageDialog(this,
                     "Application submitted successfully for " + selectedDrive.getRole() + " at " + selectedDrive.getCompany().getCompanyName() + ".",
                     "Success",
                     JOptionPane.INFORMATION_MESSAGE);
+            loadDrives();
             loadApplications();
             loadNotifications();
         } catch (IneligibleStudentException ise) {
@@ -387,6 +539,57 @@ public class StudentProfilePanel extends JPanel {
             JOptionPane.showMessageDialog(this, dae.getMessage(), "Duplicate Application", JOptionPane.WARNING_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Application Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void withdrawSelectedApplication() {
+        int selectedRow = applicationsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select an application to withdraw.", "Selection Required", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String appId = (String) applicationsTableModel.getValueAt(selectedRow, 0);
+        if ("No applications yet".equals(appId)) return;
+
+        Application target = null;
+        for (Application a : DataManager.getInstance().getApplicationsForStudent(currentStudent)) {
+            if (a.getApplicationId().equalsIgnoreCase(appId)) {
+                target = a;
+                break;
+            }
+        }
+
+        if (target == null) {
+            JOptionPane.showMessageDialog(this, "Selected application could not be found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!"Applied".equalsIgnoreCase(target.getStatus())) {
+            JOptionPane.showMessageDialog(this,
+                    "Applications with status '" + target.getStatus() + "' cannot be withdrawn.\nOnly applications pending initial recruiter review ('Applied') may be withdrawn.",
+                    "Withdrawal Restricted",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(
+                this,
+                "Are you sure you want to withdraw your application for '"
+                        + (target.getDrive() != null ? target.getDrive().getRole() : "Job Role") + "'?\nThis action cannot be undone.",
+                "Confirm Application Withdrawal",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+        );
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        try {
+            DataManager.getInstance().withdrawApplication(currentStudent, target);
+            JOptionPane.showMessageDialog(this, "Application successfully withdrawn.", "Withdrawn", JOptionPane.INFORMATION_MESSAGE);
+            loadApplications();
+            loadDrives();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error withdrawing application: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -407,9 +610,30 @@ public class StudentProfilePanel extends JPanel {
 
     private void loadDrives() {
         drivesTableModel.setRowCount(0);
-        List<PlacementDrive> drives = DataManager.getInstance().getDrives();
-        for (PlacementDrive d : drives) {
+        currentRenderedDrives.clear();
+        if (currentStudent == null) return;
+
+        String query = driveSearchField != null ? driveSearchField.getText().trim().toLowerCase() : "";
+        boolean eligibleOnly = eligibleOnlyCheckBox != null && eligibleOnlyCheckBox.isSelected();
+
+        List<PlacementDrive> allDrives = DataManager.getInstance().getDrives();
+        for (PlacementDrive d : allDrives) {
             String compName = (d.getCompany() != null) ? d.getCompany().getCompanyName() : "N/A";
+            String role = d.getRole() != null ? d.getRole() : "";
+
+            if (!query.isEmpty()) {
+                if (!compName.toLowerCase().contains(query) && !role.toLowerCase().contains(query)) {
+                    continue;
+                }
+            }
+
+            if (eligibleOnly) {
+                if (!d.checkEligibility(currentStudent) || d.isDeadlinePassed()) {
+                    continue;
+                }
+            }
+
+            currentRenderedDrives.add(d);
             drivesTableModel.addRow(new Object[]{
                     d.getDriveId(),
                     compName,
@@ -451,13 +675,19 @@ public class StudentProfilePanel extends JPanel {
     private void loadNotifications() {
         notificationListModel.clear();
         if (currentStudent == null) return;
-        List<String> notifs = currentStudent.getNotifications();
+
+        List<Notification> notifs = currentStudent.getNotifications();
         if (notifs.isEmpty()) {
             notificationListModel.addElement("No notifications yet.");
         } else {
             for (int i = notifs.size() - 1; i >= 0; i--) {
-                notificationListModel.addElement(notifs.get(i));
+                notificationListModel.addElement(notifs.get(i).toString());
             }
+        }
+
+        int unread = currentStudent.getUnreadNotificationCount();
+        if (tabbedPane != null && tabbedPane.getTabCount() > 2) {
+            tabbedPane.setTitleAt(2, unread > 0 ? "Notifications (" + unread + ")" : "Notifications");
         }
     }
 }

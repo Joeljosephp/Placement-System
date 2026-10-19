@@ -9,6 +9,8 @@ import com.placementsystem.util.DataManager;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class MainFrame extends JFrame {
     private static final long serialVersionUID = 1L;
@@ -31,6 +33,7 @@ public class MainFrame extends JFrame {
     private JLabel userStatusLabel;
     private JButton navPrimaryButton;
     private JButton navTrackingButton;
+    private JButton changePasswordButton;
     private JButton logoutButton;
 
     private String currentRole = null;
@@ -51,8 +54,15 @@ public class MainFrame extends JFrame {
         setSize(1200, 800);
         setMinimumSize(new Dimension(1000, 680));
         setLocationRelativeTo(null);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLayout(new BorderLayout());
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                handleWindowClose();
+            }
+        });
 
         headerPanel = createHeaderPanel();
         add(headerPanel, BorderLayout.NORTH);
@@ -77,6 +87,24 @@ public class MainFrame extends JFrame {
 
         showCard(CARD_LOGIN);
         updateHeaderForSession(null, null);
+    }
+
+    private void handleWindowClose() {
+        if ("Student".equals(currentRole) && studentProfilePanel != null && studentProfilePanel.hasUnsavedChanges()) {
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "You have unsaved changes in your profile. Are you sure you want to exit without saving?",
+                    "Confirm Exit",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (confirm != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+        DataManager.getInstance().shutdown();
+        dispose();
+        System.exit(0);
     }
 
     private JPanel headerPanel;
@@ -113,6 +141,17 @@ public class MainFrame extends JFrame {
         });
         navTrackingButton.setVisible(false);
         rightControls.add(navTrackingButton);
+
+        changePasswordButton = new JButton("Change Password");
+        Theme.styleSecondaryButton(changePasswordButton);
+        changePasswordButton.addActionListener(e -> {
+            if (currentUser != null) {
+                ChangePasswordDialog dlg = new ChangePasswordDialog(this, currentUser);
+                dlg.setVisible(true);
+            }
+        });
+        changePasswordButton.setVisible(false);
+        rightControls.add(changePasswordButton);
 
         logoutButton = new JButton("Logout");
         Theme.styleSecondaryButton(logoutButton);
@@ -153,6 +192,7 @@ public class MainFrame extends JFrame {
 
         navPrimaryButton.setVisible(true);
         navTrackingButton.setVisible(true);
+        changePasswordButton.setVisible(true);
         logoutButton.setVisible(true);
     }
 
@@ -180,8 +220,13 @@ public class MainFrame extends JFrame {
             }
         }
 
-        // Asynchronous non-blocking save on logout
         DataManager.getInstance().saveAllAsync();
+
+        if (studentProfilePanel != null) studentProfilePanel.clearSession();
+        if (companyDashboard != null) companyDashboard.clearSession();
+        if (adminDashboard != null) adminDashboard.clearSession();
+        if (trackingPanel != null) trackingPanel.clearSession();
+        if (loginPanel != null) loginPanel.clearFields();
 
         this.currentRole = null;
         this.currentUser = null;
@@ -208,6 +253,7 @@ public class MainFrame extends JFrame {
             userStatusLabel.setText("");
             navPrimaryButton.setVisible(false);
             navTrackingButton.setVisible(false);
+            changePasswordButton.setVisible(false);
             logoutButton.setVisible(false);
         } else {
             String displayName = "";
@@ -222,6 +268,7 @@ public class MainFrame extends JFrame {
                 displayName = po.getName() + " (Placement Officer)";
             }
             userStatusLabel.setText(displayName);
+            changePasswordButton.setVisible(true);
         }
     }
 

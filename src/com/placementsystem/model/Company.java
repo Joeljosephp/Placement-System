@@ -17,7 +17,7 @@ public class Company implements Notifiable, Serializable {
     private String salt;
     private boolean isApproved;
     private String rejectionReason;
-    private List<String> notifications;
+    private List<Notification> notifications;
 
     public Company() {
         this.isApproved = false;
@@ -123,16 +123,42 @@ public class Company implements Notifiable, Serializable {
         return !isApproved && rejectionReason != null && !rejectionReason.trim().isEmpty();
     }
 
-    public List<String> getNotifications() {
+    @SuppressWarnings("unchecked")
+    public List<Notification> getNotifications() {
         if (notifications == null) {
             notifications = new ArrayList<>();
+        }
+        for (int i = 0; i < notifications.size(); i++) {
+            Object obj = notifications.get(i);
+            if (obj instanceof String) {
+                notifications.set(i, new Notification("N" + (i + 1), (String) obj));
+            }
         }
         return notifications;
     }
 
+    public int getUnreadNotificationCount() {
+        int count = 0;
+        for (Notification n : getNotifications()) {
+            if (!n.isRead()) count++;
+        }
+        return count;
+    }
+
+    public void markAllNotificationsAsRead() {
+        for (Notification n : getNotifications()) {
+            n.setRead(true);
+        }
+    }
+
+    public void clearNotifications() {
+        getNotifications().clear();
+    }
+
     @Override
     public void sendNotification(String message) {
-        getNotifications().add(message);
+        String id = "N" + (getNotifications().size() + 1);
+        getNotifications().add(new Notification(id, message));
     }
 
     @Override

@@ -81,7 +81,10 @@ public class ApplicationTrackingPanel extends JPanel {
             filterComboBox.setSelectedIndex(0);
             loadApplications();
         });
-        controls.add(refreshBtn);
+        JButton exportBtn = new JButton("Export CSV");
+        Theme.styleSecondaryButton(exportBtn);
+        exportBtn.addActionListener(e -> exportPipelineToCsv());
+        controls.add(exportBtn);
 
         headerPanel.add(controls, BorderLayout.EAST);
         northPanel.add(headerPanel, BorderLayout.NORTH);
@@ -240,6 +243,53 @@ public class ApplicationTrackingPanel extends JPanel {
 
         if (count == 0) {
             selectedAppLabel.setText("No interview rounds scheduled yet for: " + sName + " (" + appId + ")");
+        }
+    }
+
+    public void clearSession() {
+        if (applicationsTableModel != null) applicationsTableModel.setRowCount(0);
+        if (interviewsTableModel != null) interviewsTableModel.setRowCount(0);
+        if (searchField != null) searchField.setText("");
+        if (selectedAppLabel != null) selectedAppLabel.setText("Select an application above to inspect interview schedules.");
+    }
+
+    private void exportPipelineToCsv() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Save Pipeline CSV");
+        fileChooser.setSelectedFile(new java.io.File("placement_pipeline.csv"));
+
+        int userSelection = fileChooser.showSaveDialog(this);
+        if (userSelection != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        java.io.File fileToSave = fileChooser.getSelectedFile();
+        if (!fileToSave.getName().toLowerCase().endsWith(".csv")) {
+            fileToSave = new java.io.File(fileToSave.getParentFile(), fileToSave.getName() + ".csv");
+        }
+
+        try (java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.FileWriter(fileToSave))) {
+            writer.println("App ID,Student Name,USN,Department,CGPA,Company,Role,CTC (LPA),Status,Applied On");
+            for (int r = 0; r < applicationsTableModel.getRowCount(); r++) {
+                String firstVal = String.valueOf(applicationsTableModel.getValueAt(r, 0));
+                if ("-".equals(firstVal)) continue;
+
+                StringBuilder line = new StringBuilder();
+                for (int c = 0; c < applicationsTableModel.getColumnCount(); c++) {
+                    String val = String.valueOf(applicationsTableModel.getValueAt(r, c));
+                    if (val.contains(",") || val.contains("\"")) {
+                        val = "\"" + val.replace("\"", "\"\"") + "\"";
+                    }
+                    line.append(val);
+                    if (c < applicationsTableModel.getColumnCount() - 1) {
+                        line.append(",");
+                    }
+                }
+                writer.println(line.toString());
+            }
+            JOptionPane.showMessageDialog(this, "Pipeline CSV exported successfully to:\n" + fileToSave.getAbsolutePath(), "Export Complete", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Failed to export CSV: " + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

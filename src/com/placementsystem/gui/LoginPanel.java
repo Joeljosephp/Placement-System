@@ -5,14 +5,18 @@ import com.placementsystem.model.Company;
 import com.placementsystem.model.PlacementOfficer;
 import com.placementsystem.model.Student;
 import com.placementsystem.util.DataManager;
+import com.placementsystem.util.Validator;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 
 public class LoginPanel extends JPanel {
     private static final long serialVersionUID = 1L;
+
+    private static String lastSelectedRole = "Student";
 
     private final MainFrame mainFrame;
     private final boolean showDemoHints;
@@ -71,6 +75,7 @@ public class LoginPanel extends JPanel {
         String[] roles = {"Student", "Company", "Placement Officer"};
         roleComboBox = new JComboBox<>(roles);
         roleComboBox.setFont(Theme.FONT_BODY);
+        roleComboBox.setSelectedItem(lastSelectedRole);
         card.add(roleComboBox, gbc);
 
         // Email
@@ -84,6 +89,7 @@ public class LoginPanel extends JPanel {
         gbc.gridx = 1;
         emailField = new JTextField(20);
         emailField.setFont(Theme.FONT_BODY);
+        emailField.addActionListener(this::handleLogin);
         emailErrorLabel = Theme.createInlineValidationLabel();
         card.add(Theme.createFieldWithValidation(emailField, emailErrorLabel), gbc);
 
@@ -98,10 +104,11 @@ public class LoginPanel extends JPanel {
         gbc.gridx = 1;
         passwordField = new JPasswordField(20);
         passwordField.setFont(Theme.FONT_BODY);
+        passwordField.addActionListener(this::handleLogin);
         passwordErrorLabel = Theme.createInlineValidationLabel();
         card.add(Theme.createFieldWithValidation(passwordField, passwordErrorLabel), gbc);
 
-        // Login Button (single primary button on screen)
+        // Login Button
         gbc.gridy++;
         gbc.gridx = 0;
         gbc.gridwidth = 2;
@@ -110,7 +117,7 @@ public class LoginPanel extends JPanel {
         loginButton.addActionListener(this::handleLogin);
         card.add(loginButton, gbc);
 
-        // Registration buttons (secondary actions)
+        // Registration buttons
         gbc.gridy++;
         JPanel regPanel = new JPanel(new GridLayout(1, 2, Theme.SPACING_SMALL, 0));
         regPanel.setOpaque(false);
@@ -166,18 +173,25 @@ public class LoginPanel extends JPanel {
         clearErrors();
 
         String role = (String) roleComboBox.getSelectedItem();
+        lastSelectedRole = role;
+
         String email = emailField.getText().trim();
-        String password = new String(passwordField.getPassword()).trim();
+        String password = new String(passwordField.getPassword());
 
         boolean hasError = false;
         if (email.isEmpty()) {
             emailErrorLabel.setText("Email is required.");
             hasError = true;
+        } else if (!Validator.isValidEmail(email)) {
+            emailErrorLabel.setText("Invalid email format.");
+            hasError = true;
         }
+
         if (password.isEmpty()) {
             passwordErrorLabel.setText("Password is required.");
             hasError = true;
         }
+
         if (hasError) {
             revalidate();
             repaint();
@@ -219,9 +233,12 @@ public class LoginPanel extends JPanel {
         }
     }
 
-    private void clearFields() {
+    public void clearFields() {
         emailField.setText("");
         passwordField.setText("");
+        if (roleComboBox != null && lastSelectedRole != null) {
+            roleComboBox.setSelectedItem(lastSelectedRole);
+        }
         clearErrors();
     }
 
@@ -229,11 +246,18 @@ public class LoginPanel extends JPanel {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Student Registration", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
-        dialog.setSize(480, 580);
+        dialog.setSize(480, 600);
         dialog.setLocationRelativeTo(this);
 
+        // Escape key to dismiss dialog
+        dialog.getRootPane().registerKeyboardAction(
+                ev -> dialog.dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(5, 12, 5, 12);
+        g.insets = new Insets(4, 12, 4, 12);
         g.fill = GridBagConstraints.HORIZONTAL;
         g.anchor = GridBagConstraints.NORTHWEST;
 
@@ -249,6 +273,8 @@ public class LoginPanel extends JPanel {
         JLabel usnErr = Theme.createInlineValidationLabel();
         JLabel nameErr = Theme.createInlineValidationLabel();
         JLabel emailErr = Theme.createInlineValidationLabel();
+        JLabel phoneErr = Theme.createInlineValidationLabel();
+        JLabel deptErr = Theme.createInlineValidationLabel();
         JLabel cgpaErr = Theme.createInlineValidationLabel();
         JLabel backlogsErr = Theme.createInlineValidationLabel();
         JLabel passErr = Theme.createInlineValidationLabel();
@@ -257,18 +283,22 @@ public class LoginPanel extends JPanel {
         addFormRowWithValidation(dialog, g, row++, "USN:", usnF, usnErr);
         addFormRowWithValidation(dialog, g, row++, "Full Name:", nameF, nameErr);
         addFormRowWithValidation(dialog, g, row++, "Email:", emailF, emailErr);
-        addFormRow(dialog, g, row++, "Phone:", phoneF);
-        addFormRow(dialog, g, row++, "Department:", deptF);
+        addFormRowWithValidation(dialog, g, row++, "Phone:", phoneF, phoneErr);
+        addFormRowWithValidation(dialog, g, row++, "Department:", deptF, deptErr);
         addFormRowWithValidation(dialog, g, row++, "CGPA (0.0 to 10.0):", cgpaF, cgpaErr);
         addFormRowWithValidation(dialog, g, row++, "Backlogs:", backlogsF, backlogsErr);
-        addFormRowWithValidation(dialog, g, row++, "Password:", passF, passErr);
+        addFormRowWithValidation(dialog, g, row++, "Password (min 6 chars):", passF, passErr);
 
         JButton submitBtn = new JButton("Register");
         Theme.stylePrimaryButton(submitBtn);
+        dialog.getRootPane().setDefaultButton(submitBtn);
+
         submitBtn.addActionListener(ev -> {
             usnErr.setText(" ");
             nameErr.setText(" ");
             emailErr.setText(" ");
+            phoneErr.setText(" ");
+            deptErr.setText(" ");
             cgpaErr.setText(" ");
             backlogsErr.setText(" ");
             passErr.setText(" ");
@@ -278,30 +308,55 @@ public class LoginPanel extends JPanel {
             String email = emailF.getText().trim();
             String phone = phoneF.getText().trim();
             String dept = deptF.getText().trim();
-            String pass = new String(passF.getPassword()).trim();
+            String pass = new String(passF.getPassword());
 
             boolean invalid = false;
             if (usn.isEmpty()) {
                 usnErr.setText("USN is required.");
                 invalid = true;
+            } else if (!Validator.isValidUsn(usn)) {
+                usnErr.setText("USN must be 3-20 characters (alphanumeric, -, _).");
+                invalid = true;
             }
+
             if (name.isEmpty()) {
                 nameErr.setText("Name is required.");
                 invalid = true;
             }
+
             if (email.isEmpty()) {
                 emailErr.setText("Email is required.");
                 invalid = true;
+            } else if (!Validator.isValidEmail(email)) {
+                emailErr.setText("Invalid email format.");
+                invalid = true;
             }
+
+            if (phone.isEmpty()) {
+                phoneErr.setText("Phone is required.");
+                invalid = true;
+            } else if (!Validator.isValidPhone(phone)) {
+                phoneErr.setText("Enter valid 10-digit mobile number.");
+                invalid = true;
+            }
+
+            if (dept.isEmpty()) {
+                deptErr.setText("Department is required.");
+                invalid = true;
+            }
+
             if (pass.isEmpty()) {
                 passErr.setText("Password is required.");
+                invalid = true;
+            } else if (!Validator.isValidPassword(pass)) {
+                passErr.setText("Password must be at least 6 characters.");
                 invalid = true;
             }
 
             double cgpa = 0.0;
             try {
                 cgpa = Double.parseDouble(cgpaF.getText().trim());
-                if (cgpa < 0.0 || cgpa > 10.0) {
+                if (!Validator.isValidCgpa(cgpa)) {
                     cgpaErr.setText("CGPA must be between 0.0 and 10.0.");
                     invalid = true;
                 }
@@ -313,8 +368,8 @@ public class LoginPanel extends JPanel {
             int backlogs = 0;
             try {
                 backlogs = Integer.parseInt(backlogsF.getText().trim());
-                if (backlogs < 0) {
-                    backlogsErr.setText("Backlogs cannot be negative.");
+                if (!Validator.isValidBacklogs(backlogs)) {
+                    backlogsErr.setText("Backlogs must be between 0 and 50.");
                     invalid = true;
                 }
             } catch (NumberFormatException nfe) {
@@ -352,8 +407,15 @@ public class LoginPanel extends JPanel {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Company Registration", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
-        dialog.setSize(440, 420);
+        dialog.setSize(440, 440);
         dialog.setLocationRelativeTo(this);
+
+        // Escape key to dismiss dialog
+        dialog.getRootPane().registerKeyboardAction(
+                ev -> dialog.dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
 
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(5, 12, 5, 12);
@@ -366,38 +428,52 @@ public class LoginPanel extends JPanel {
         JPasswordField passF = new JPasswordField(15);
 
         JLabel nameErr = Theme.createInlineValidationLabel();
+        JLabel indErr = Theme.createInlineValidationLabel();
         JLabel emailErr = Theme.createInlineValidationLabel();
         JLabel passErr = Theme.createInlineValidationLabel();
 
         int row = 0;
         addFormRowWithValidation(dialog, g, row++, "Company Name:", compNameF, nameErr);
-        addFormRow(dialog, g, row++, "Industry Type:", industryF);
+        addFormRowWithValidation(dialog, g, row++, "Industry Type:", industryF, indErr);
         addFormRowWithValidation(dialog, g, row++, "Email:", emailF, emailErr);
-        addFormRowWithValidation(dialog, g, row++, "Password:", passF, passErr);
+        addFormRowWithValidation(dialog, g, row++, "Password (min 6 chars):", passF, passErr);
 
         JButton submitBtn = new JButton("Submit Registration");
         Theme.stylePrimaryButton(submitBtn);
+        dialog.getRootPane().setDefaultButton(submitBtn);
+
         submitBtn.addActionListener(ev -> {
             nameErr.setText(" ");
+            indErr.setText(" ");
             emailErr.setText(" ");
             passErr.setText(" ");
 
             String name = compNameF.getText().trim();
             String ind = industryF.getText().trim();
             String email = emailF.getText().trim();
-            String pass = new String(passF.getPassword()).trim();
+            String pass = new String(passF.getPassword());
 
             boolean invalid = false;
             if (name.isEmpty()) {
                 nameErr.setText("Company name is required.");
                 invalid = true;
             }
+            if (ind.isEmpty()) {
+                indErr.setText("Industry type is required.");
+                invalid = true;
+            }
             if (email.isEmpty()) {
                 emailErr.setText("Email is required.");
+                invalid = true;
+            } else if (!Validator.isValidEmail(email)) {
+                emailErr.setText("Invalid email format.");
                 invalid = true;
             }
             if (pass.isEmpty()) {
                 passErr.setText("Password is required.");
+                invalid = true;
+            } else if (!Validator.isValidPassword(pass)) {
+                passErr.setText("Password must be at least 6 characters.");
                 invalid = true;
             }
 
@@ -408,7 +484,7 @@ public class LoginPanel extends JPanel {
             }
 
             try {
-                String compId = "CMP" + (DataManager.getInstance().getCompanies().size() + 101);
+                String compId = DataManager.getInstance().nextCompanyId();
                 Company c = new Company(compId, name, ind, email, pass);
                 DataManager.getInstance().addCompany(c);
                 JOptionPane.showMessageDialog(dialog,
