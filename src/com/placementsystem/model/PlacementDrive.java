@@ -4,10 +4,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a campus placement recruitment drive.
- * Demonstrates Method Overloading (scheduleInterview) and Business Logic Validation.
- */
 public class PlacementDrive implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -37,7 +33,6 @@ public class PlacementDrive implements Serializable {
         this.applicants = new ArrayList<>();
     }
 
-    // Getters and Setters
     public String getDriveId() {
         return driveId;
     }
@@ -113,24 +108,16 @@ public class PlacementDrive implements Serializable {
         this.applicants = applicants;
     }
 
-    /**
-     * Checks if a student meets both CGPA and maximum backlog criteria.
-     */
+    // Checks if a student meets both CGPA and maximum backlog criteria
     public boolean checkEligibility(Student s) {
         if (s == null) return false;
         return s.getCgpa() >= this.eligibleCGPA && s.getBacklogs() <= this.maxBacklogsAllowed;
     }
 
-    /**
-     * Method Overloading: schedules an interview date.
-     */
     public void scheduleInterview(String date) {
         this.driveDate = date;
     }
 
-    /**
-     * Method Overloading: schedules an interview date and specific venue.
-     */
     public void scheduleInterview(String date, String venue) {
         this.driveDate = date;
         this.venue = venue;

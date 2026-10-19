@@ -1,15 +1,14 @@
 package com.placementsystem.model;
 
-/**
- * Represents a Placement Officer (Admin) in the placement system.
- * Demonstrates Inheritance (extends Person) and Business Authorization.
- */
+import com.placementsystem.util.PasswordUtil;
+
 public class PlacementOfficer extends Person {
     private static final long serialVersionUID = 1L;
 
     private String officerId;
     private String designation;
-    private String password;
+    private String passwordHash;
+    private String salt;
 
     public PlacementOfficer() {
         super();
@@ -19,10 +18,9 @@ public class PlacementOfficer extends Person {
         super(name, email, phone);
         this.officerId = officerId;
         this.designation = designation;
-        this.password = password;
+        setPassword(password);
     }
 
-    // Getters and Setters
     public String getOfficerId() {
         return officerId;
     }
@@ -40,16 +38,34 @@ public class PlacementOfficer extends Person {
     }
 
     public String getPassword() {
-        return password;
+        return passwordHash;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public String getSalt() {
+        return salt;
     }
 
     public void setPassword(String password) {
-        this.password = password;
+        if (password != null && !password.isEmpty()) {
+            this.salt = PasswordUtil.generateSalt();
+            this.passwordHash = PasswordUtil.hashPassword(password, this.salt);
+        }
     }
 
-    /**
-     * Approves a recruiting company, enabling them to post placement drives.
-     */
+    public boolean checkPassword(String plainPassword) {
+        if (plainPassword == null) {
+            return false;
+        }
+        if (salt != null && passwordHash != null) {
+            return PasswordUtil.verifyPassword(plainPassword, salt, passwordHash);
+        }
+        return false;
+    }
+
     public void approveCompany(Company c) {
         if (c != null) {
             c.setApproved(true);
@@ -59,12 +75,7 @@ public class PlacementOfficer extends Person {
 
     @Override
     public void displayDetails() {
-        System.out.println("----- Placement Officer Details -----");
-        System.out.println("Officer ID: " + officerId);
-        System.out.println("Name: " + name);
-        System.out.println("Email: " + email);
-        System.out.println("Phone: " + phone);
-        System.out.println("Designation: " + designation);
+        System.out.println("Officer: " + name + " (" + officerId + "), " + designation);
     }
 
     @Override

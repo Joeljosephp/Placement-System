@@ -1,13 +1,11 @@
 package com.placementsystem.model;
 
+import com.placementsystem.util.PasswordUtil;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a recruiting company in the placement system.
- * Demonstrates Interface implementation (Notifiable) and Object Serialization.
- */
 public class Company implements Notifiable, Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -15,7 +13,8 @@ public class Company implements Notifiable, Serializable {
     private String companyName;
     private String industryType;
     private String email;
-    private String password;
+    private String passwordHash;
+    private String salt;
     private boolean isApproved;
     private List<String> notifications;
 
@@ -33,12 +32,11 @@ public class Company implements Notifiable, Serializable {
         this.companyName = companyName;
         this.industryType = industryType;
         this.email = email;
-        this.password = password;
+        setPassword(password);
         this.isApproved = false;
         this.notifications = new ArrayList<>();
     }
 
-    // Getters and Setters
     public String getCompanyId() {
         return companyId;
     }
@@ -72,11 +70,32 @@ public class Company implements Notifiable, Serializable {
     }
 
     public String getPassword() {
-        return password;
+        return passwordHash;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public String getSalt() {
+        return salt;
     }
 
     public void setPassword(String password) {
-        this.password = password;
+        if (password != null && !password.isEmpty()) {
+            this.salt = PasswordUtil.generateSalt();
+            this.passwordHash = PasswordUtil.hashPassword(password, this.salt);
+        }
+    }
+
+    public boolean checkPassword(String plainPassword) {
+        if (plainPassword == null) {
+            return false;
+        }
+        if (salt != null && passwordHash != null) {
+            return PasswordUtil.verifyPassword(plainPassword, salt, passwordHash);
+        }
+        return false;
     }
 
     public boolean isApproved() {
@@ -97,7 +116,6 @@ public class Company implements Notifiable, Serializable {
     @Override
     public void sendNotification(String message) {
         getNotifications().add(message);
-        System.out.println("[Notification -> Company " + companyName + "]: " + message);
     }
 
     @Override

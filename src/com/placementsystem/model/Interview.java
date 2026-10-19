@@ -2,17 +2,13 @@ package com.placementsystem.model;
 
 import java.io.Serializable;
 
-/**
- * Represents an interview round scheduled for an applicant.
- * Demonstrates Object Associations and State Tracking.
- */
 public class Interview implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String interviewId;
     private Application application;
-    private String roundName; // e.g., "Online Aptitude", "Technical Interview 1", "HR Round"
-    private String result;    // "Scheduled", "Cleared", "Rejected", "Pending"
+    private String roundName;
+    private String result;
     private String interviewDate;
 
     public Interview() {
@@ -27,7 +23,6 @@ public class Interview implements Serializable {
         this.interviewDate = interviewDate;
     }
 
-    // Getters and Setters
     public String getInterviewId() {
         return interviewId;
     }

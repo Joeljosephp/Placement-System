@@ -4,10 +4,6 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Represents an application made by a student for a placement drive.
- * Demonstrates Object Associations and Notification triggering.
- */
 public class Application implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -38,7 +34,6 @@ public class Application implements Serializable {
         this.appliedDate = appliedDate;
     }
 
-    // Getters and Setters
     public String getApplicationId() {
         return applicationId;
     }
@@ -79,9 +74,7 @@ public class Application implements Serializable {
         this.appliedDate = appliedDate;
     }
 
-    /**
-     * Updates the application status and dispatches a notification to the student.
-     */
+    // Updates application status and notifies the applicant
     public void updateStatus(String newStatus) {
         this.status = newStatus;
         if (student != null) {
@@ -89,8 +82,8 @@ public class Application implements Serializable {
                     ? drive.getCompany().getCompanyName() 
                     : "Company";
             String role = (drive != null) ? drive.getRole() : "Job Role";
-            student.sendNotification("Application Status Update: Your application for '" 
-                    + role + "' at " + companyName + " has been changed to: " + newStatus);
+            student.sendNotification("Application update: Your application for '" 
+                    + role + "' at " + companyName + " is now " + newStatus);
         }
     }
 

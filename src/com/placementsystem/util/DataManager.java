@@ -7,12 +7,10 @@ import com.placementsystem.model.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Object Serialization and Central Data Management Engine.
- * Handles binary I/O for students, companies, drives, applications, interviews, and officers.
- * Demonstrates Java File I/O, Object Serialization, and Singleton Design Pattern.
- */
 public class DataManager {
     private static DataManager instance;
 
@@ -23,6 +21,12 @@ public class DataManager {
     private static final String APPLICATIONS_FILE = DATA_DIR + "/applications.dat";
     private static final String OFFICERS_FILE = DATA_DIR + "/officers.dat";
     private static final String INTERVIEWS_FILE = DATA_DIR + "/interviews.dat";
+
+    private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "DataManager-Save-Worker");
+        t.setDaemon(true);
+        return t;
+    });
 
     private List<Student> students;
     private List<Company> companies;
@@ -50,22 +54,13 @@ public class DataManager {
         return instance;
     }
 
-    /**
-     * Initializes the ./data/ directory and seeds default data if missing.
-     */
     private void initializeStorage() {
         File dir = new File(DATA_DIR);
         if (!dir.exists()) {
-            boolean created = dir.mkdirs();
-            if (created) {
-                System.out.println("[DataManager] Created data directory: " + dir.getAbsolutePath());
-            }
+            dir.mkdirs();
         }
     }
 
-    /**
-     * Seeds the default Administrator / Placement Officer if officers.dat is empty.
-     */
     private void seedDefaultOfficerIfEmpty() {
         if (officers.isEmpty()) {
             PlacementOfficer defaultAdmin = new PlacementOfficer(
@@ -78,16 +73,11 @@ public class DataManager {
             );
             officers.add(defaultAdmin);
             saveOfficers();
-            System.out.println("[DataManager] Seeded default Placement Officer (admin@ktu.edu / admin123)");
         }
     }
 
-    /**
-     * Seeds sample data (students, companies, drives) if completely empty on first launch.
-     */
     private void seedSampleDataIfEmpty() {
         if (students.isEmpty() && companies.isEmpty() && drives.isEmpty()) {
-            // Seed sample students
             Student s1 = new Student("TVE22CS001", "Arun Kumar", "arun@ktu.edu", "9876543210", "Computer Science", 8.75, 0, "arun123");
             Student s2 = new Student("TVE22CS045", "Diya Menon", "diya@ktu.edu", "9876543211", "Computer Science", 9.10, 0, "diya123");
             Student s3 = new Student("TVE22EC012", "Rahul Varma", "rahul@ktu.edu", "9876543212", "Electronics & Comm.", 6.80, 1, "rahul123");
@@ -96,44 +86,34 @@ public class DataManager {
             students.add(s3);
             saveStudents();
 
-            // Seed sample companies
             Company c1 = new Company("CMP101", "Infosys Limited", "Information Technology", "hr@infosys.com", "info123");
             c1.setApproved(true);
             Company c2 = new Company("CMP102", "Google Cloud", "Software & Cloud Services", "careers@google.com", "google123");
             c2.setApproved(true);
             Company c3 = new Company("CMP103", "Innovate AI Labs", "Artificial Intelligence", "recruit@innovate.ai", "innovate123");
-            c3.setApproved(false); // Pending approval
+            c3.setApproved(false);
             companies.add(c1);
             companies.add(c2);
             companies.add(c3);
             saveCompanies();
 
-            // Seed sample drives
             PlacementDrive d1 = new PlacementDrive("DRV201", c1, "Systems Engineer", 4.5, 6.5, 1, "2026-11-15");
             PlacementDrive d2 = new PlacementDrive("DRV202", c2, "Associate Software Engineer", 18.0, 8.5, 0, "2026-11-20");
             drives.add(d1);
             drives.add(d2);
             saveDrives();
 
-            // Seed sample application
             Application app1 = new Application("APP301", s1, d2);
             app1.updateStatus("Shortlisted");
             applications.add(app1);
             d2.getApplicants().add(app1);
             saveApplications();
 
-            // Seed sample interview
             Interview int1 = new Interview("INT401", app1, "Round 1 - Technical Coding", "Cleared", "2026-11-22 10:00 AM");
             interviews.add(int1);
             saveInterviews();
-
-            System.out.println("[DataManager] Seeded initial sample students, companies, and placement drives.");
         }
     }
-
-    // ==========================================
-    // PERSISTENCE (SERIALIZATION / DESERIALIZATION)
-    // ==========================================
 
     @SuppressWarnings("unchecked")
     private <T> List<T> readListFromFile(String filePath) {
@@ -147,10 +127,9 @@ public class DataManager {
                 return (List<T>) obj;
             }
         } catch (EOFException e) {
-            // File was empty
             return new ArrayList<>();
         } catch (Exception e) {
-            System.err.println("[DataManager] Error reading " + filePath + ": " + e.getMessage());
+            System.err.println("Error reading " + filePath + ": " + e.getMessage());
         }
         return new ArrayList<>();
     }
@@ -160,7 +139,7 @@ public class DataManager {
             oos.writeObject(list);
             oos.flush();
         } catch (Exception e) {
-            System.err.println("[DataManager] Error writing to " + filePath + ": " + e.getMessage());
+            System.err.println("Error writing to " + filePath + ": " + e.getMessage());
         }
     }
 
@@ -176,47 +155,71 @@ public class DataManager {
         seedSampleDataIfEmpty();
     }
 
+    // Synchronous save for shutdown hook or explicit flushes
     public synchronized void saveAll() {
-        saveStudents();
-        saveCompanies();
-        saveDrives();
-        saveApplications();
-        saveOfficers();
-        saveInterviews();
-        System.out.println("[DataManager] All system data autosaved successfully to disk.");
+        writeListToFile(STUDENTS_FILE, new ArrayList<>(students));
+        writeListToFile(COMPANIES_FILE, new ArrayList<>(companies));
+        writeListToFile(DRIVES_FILE, new ArrayList<>(drives));
+        writeListToFile(APPLICATIONS_FILE, new ArrayList<>(applications));
+        writeListToFile(OFFICERS_FILE, new ArrayList<>(officers));
+        writeListToFile(INTERVIEWS_FILE, new ArrayList<>(interviews));
+    }
+
+    // Non-blocking save for UI thread operations to avoid freezing the EDT
+    public void saveAllAsync() {
+        final List<Student> studentsCopy;
+        final List<Company> companiesCopy;
+        final List<PlacementDrive> drivesCopy;
+        final List<Application> applicationsCopy;
+        final List<PlacementOfficer> officersCopy;
+        final List<Interview> interviewsCopy;
+
+        synchronized (this) {
+            studentsCopy = new ArrayList<>(students);
+            companiesCopy = new ArrayList<>(companies);
+            drivesCopy = new ArrayList<>(drives);
+            applicationsCopy = new ArrayList<>(applications);
+            officersCopy = new ArrayList<>(officers);
+            interviewsCopy = new ArrayList<>(interviews);
+        }
+
+        saveExecutor.submit(() -> {
+            writeListToFile(STUDENTS_FILE, studentsCopy);
+            writeListToFile(COMPANIES_FILE, companiesCopy);
+            writeListToFile(DRIVES_FILE, drivesCopy);
+            writeListToFile(APPLICATIONS_FILE, applicationsCopy);
+            writeListToFile(OFFICERS_FILE, officersCopy);
+            writeListToFile(INTERVIEWS_FILE, interviewsCopy);
+        });
     }
 
     public synchronized void saveStudents() {
-        writeListToFile(STUDENTS_FILE, students);
+        writeListToFile(STUDENTS_FILE, new ArrayList<>(students));
     }
 
     public synchronized void saveCompanies() {
-        writeListToFile(COMPANIES_FILE, companies);
+        writeListToFile(COMPANIES_FILE, new ArrayList<>(companies));
     }
 
     public synchronized void saveDrives() {
-        writeListToFile(DRIVES_FILE, drives);
+        writeListToFile(DRIVES_FILE, new ArrayList<>(drives));
     }
 
     public synchronized void saveApplications() {
-        writeListToFile(APPLICATIONS_FILE, applications);
+        writeListToFile(APPLICATIONS_FILE, new ArrayList<>(applications));
     }
 
     public synchronized void saveOfficers() {
-        writeListToFile(OFFICERS_FILE, officers);
+        writeListToFile(OFFICERS_FILE, new ArrayList<>(officers));
     }
 
     public synchronized void saveInterviews() {
-        writeListToFile(INTERVIEWS_FILE, interviews);
+        writeListToFile(INTERVIEWS_FILE, new ArrayList<>(interviews));
     }
-
-    // ==========================================
-    // AUTHENTICATION LOOKUPS
-    // ==========================================
 
     public synchronized Student authenticateStudent(String email, String password) {
         for (Student s : students) {
-            if (s.getEmail().equalsIgnoreCase(email.trim()) && s.getPassword().equals(password)) {
+            if (s.getEmail().equalsIgnoreCase(email.trim()) && s.checkPassword(password)) {
                 return s;
             }
         }
@@ -225,7 +228,7 @@ public class DataManager {
 
     public synchronized Company authenticateCompany(String email, String password) {
         for (Company c : companies) {
-            if (c.getEmail().equalsIgnoreCase(email.trim()) && c.getPassword().equals(password)) {
+            if (c.getEmail().equalsIgnoreCase(email.trim()) && c.checkPassword(password)) {
                 return c;
             }
         }
@@ -234,16 +237,12 @@ public class DataManager {
 
     public synchronized PlacementOfficer authenticateOfficer(String email, String password) {
         for (PlacementOfficer po : officers) {
-            if (po.getEmail().equalsIgnoreCase(email.trim()) && po.getPassword().equals(password)) {
+            if (po.getEmail().equalsIgnoreCase(email.trim()) && po.checkPassword(password)) {
                 return po;
             }
         }
         return null;
     }
-
-    // ==========================================
-    // ENTITY CRUD & BUSINESS LOGIC
-    // ==========================================
 
     public synchronized List<Student> getStudents() {
         return new ArrayList<>(students);
@@ -372,10 +371,7 @@ public class DataManager {
         return list;
     }
 
-    /**
-     * Applies student to a drive with eligibility and duplicate checks.
-     * Demonstrates custom checked exceptions.
-     */
+    // Applies student to drive, verifying eligibility and checking for existing applications
     public synchronized void applyToDrive(Student student, PlacementDrive drive)
             throws IneligibleStudentException, DuplicateApplicationException {
         if (student == null || drive == null) {
@@ -385,7 +381,7 @@ public class DataManager {
         // 1. Eligibility Check
         if (!drive.checkEligibility(student)) {
             throw new IneligibleStudentException(
-                    "Eligibility criteria not met! Drive requires minimum CGPA of " 
+                    "Eligibility criteria not met. Drive requires minimum CGPA of " 
                     + drive.getEligibleCGPA() + " and max " + drive.getMaxBacklogsAllowed() 
                     + " backlogs. Student has CGPA: " + student.getCgpa() 
                     + " and " + student.getBacklogs() + " backlogs."
@@ -399,7 +395,7 @@ public class DataManager {
                     && existing.getDrive().getDriveId().equalsIgnoreCase(drive.getDriveId())) {
                 throw new DuplicateApplicationException(
                         "You have already applied for " + drive.getRole() + " at " 
-                        + drive.getCompany().getCompanyName() + "!"
+                        + drive.getCompany().getCompanyName() + "."
                 );
             }
         }
@@ -410,7 +406,6 @@ public class DataManager {
         applications.add(newApp);
         drive.getApplicants().add(newApp);
 
-        // Notify company
         if (drive.getCompany() != null) {
             drive.getCompany().sendNotification("New application received from " + student.getName() + " for role: " + drive.getRole());
         }
@@ -419,6 +414,7 @@ public class DataManager {
         saveDrives();
     }
 
+    // Update status and record changes
     public synchronized void updateApplicationStatus(Application app, String newStatus) {
         app.updateStatus(newStatus);
         for (int i = 0; i < applications.size(); i++) {
@@ -438,7 +434,6 @@ public class DataManager {
     public synchronized void addInterview(Interview interview) {
         interviews.add(interview);
         saveInterviews();
-        // Notify student about interview schedule
         if (interview.getApplication() != null && interview.getApplication().getStudent() != null) {
             interview.getApplication().getStudent().sendNotification(
                     "Interview Scheduled: " + interview.getRoundName() + " on " + interview.getInterviewDate()
@@ -460,10 +455,6 @@ public class DataManager {
     public synchronized List<PlacementOfficer> getOfficers() {
         return new ArrayList<>(officers);
     }
-
-    // ==========================================
-    // ANALYTICS & STATS
-    // ==========================================
 
     public synchronized int getTotalStudentsCount() {
         return students.size();
@@ -502,5 +493,15 @@ public class DataManager {
             sum += s.getCgpa();
         }
         return Math.round((sum / students.size()) * 100.0) / 100.0;
+    }
+
+    public void shutdown() {
+        try {
+            saveAll();
+            saveExecutor.shutdown();
+            saveExecutor.awaitTermination(3, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

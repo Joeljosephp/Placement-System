@@ -1,13 +1,10 @@
 package com.placementsystem.model;
 
+import com.placementsystem.util.PasswordUtil;
+
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Represents a student candidate in the placement system.
- * Demonstrates Inheritance (extends Person), Interface implementation (implements Notifiable),
- * Encapsulation, and Validation.
- */
 public class Student extends Person implements Notifiable {
     private static final long serialVersionUID = 1L;
 
@@ -15,7 +12,8 @@ public class Student extends Person implements Notifiable {
     private String department;
     private double cgpa;
     private int backlogs;
-    private String password;
+    private String passwordHash;
+    private String salt;
     private List<String> notifications;
 
     public Student() {
@@ -27,13 +25,12 @@ public class Student extends Person implements Notifiable {
         super(name, email, phone);
         this.usn = usn;
         this.department = department;
-        setCgpa(cgpa); // Enforce validation
+        setCgpa(cgpa);
         setBacklogs(backlogs);
-        this.password = password;
+        setPassword(password);
         this.notifications = new ArrayList<>();
     }
 
-    // Getters and Setters with Validation
     public String getUsn() {
         return usn;
     }
@@ -54,9 +51,7 @@ public class Student extends Person implements Notifiable {
         return cgpa;
     }
 
-    /**
-     * Validates that CGPA is strictly between 0.0 and 10.0.
-     */
+    // CGPA must be within KTU 10-point scale
     public void setCgpa(double cgpa) {
         if (cgpa < 0.0 || cgpa > 10.0) {
             throw new IllegalArgumentException("Invalid CGPA: " + cgpa + ". CGPA must be between 0.0 and 10.0");
@@ -76,11 +71,32 @@ public class Student extends Person implements Notifiable {
     }
 
     public String getPassword() {
-        return password;
+        return passwordHash;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public String getSalt() {
+        return salt;
     }
 
     public void setPassword(String password) {
-        this.password = password;
+        if (password != null && !password.isEmpty()) {
+            this.salt = PasswordUtil.generateSalt();
+            this.passwordHash = PasswordUtil.hashPassword(password, this.salt);
+        }
+    }
+
+    public boolean checkPassword(String plainPassword) {
+        if (plainPassword == null) {
+            return false;
+        }
+        if (salt != null && passwordHash != null) {
+            return PasswordUtil.verifyPassword(plainPassword, salt, passwordHash);
+        }
+        return false;
     }
 
     public List<String> getNotifications() {
@@ -92,20 +108,12 @@ public class Student extends Person implements Notifiable {
 
     @Override
     public void displayDetails() {
-        System.out.println("----- Student Details -----");
-        System.out.println("USN: " + usn);
-        System.out.println("Name: " + name);
-        System.out.println("Email: " + email);
-        System.out.println("Phone: " + phone);
-        System.out.println("Department: " + department);
-        System.out.println("CGPA: " + cgpa);
-        System.out.println("Backlogs: " + backlogs);
+        System.out.println("Student: " + name + " (" + usn + "), Department: " + department + ", CGPA: " + cgpa);
     }
 
     @Override
     public void sendNotification(String message) {
         getNotifications().add(message);
-        System.out.println("[Notification -> Student " + name + " (" + usn + ")]: " + message);
     }
 
     @Override

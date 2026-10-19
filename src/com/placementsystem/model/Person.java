@@ -2,10 +2,6 @@ package com.placementsystem.model;
 
 import java.io.Serializable;
 
-/**
- * Abstract class representing a generic Person in the placement system.
- * Demonstrates Abstraction and Encapsulation.
- */
 public abstract class Person implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -22,7 +18,6 @@ public abstract class Person implements Serializable {
         this.phone = phone;
     }
 
-    // Getters and Setters
     public String getName() {
         return name;
     }
@@ -47,9 +42,6 @@ public abstract class Person implements Serializable {
         this.phone = phone;
     }
 
-    /**
-     * Abstract method to be implemented by subclasses to display specific details.
-     */
     public abstract void displayDetails();
 
     @Override
