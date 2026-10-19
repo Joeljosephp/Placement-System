@@ -62,3 +62,14 @@ Passing `--demo` as a command line argument enables demo hints directly in the l
 - `com.placementsystem.gui`: Swing interface panels (LoginPanel, StudentProfilePanel, CompanyDashboard, AdminDashboard, ApplicationTrackingPanel) and shared Theme constants.
 - `com.placementsystem.util`: DataManager for file-based serialization and PasswordUtil for salted SHA-256 password hashing.
 - `com.placementsystem.exception`: Custom checked exceptions (IneligibleStudentException, DuplicateApplicationException).
+
+## Documentation
+
+Detailed design, audit, and examination resources are organized in the [`docs/`](docs/) directory:
+
+- [`docs/VIVA_CHEAT_SHEET.md`](docs/VIVA_CHEAT_SHEET.md): Comprehensive viva defense guide mapping every OOP concept (abstraction, polymorphism, encapsulation, inheritance, exceptions, patterns) to line numbers and examiner questions.
+- [`docs/REVIEW.md`](docs/REVIEW.md): Independent code review and end-to-end scenario verification report.
+- [`docs/AUDIT.md`](docs/AUDIT.md): Technical audit report detailing bugs, security gaps, and usability findings.
+- [`docs/PLAN.md`](docs/PLAN.md): Prioritized implementation plan for refactoring phases.
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md): History of implementation increments and smoke tests.
+
