@@ -147,4 +147,16 @@ public final class Theme {
         label.setForeground(COLOR_ERROR);
         return label;
     }
+
+    public static JPanel createFieldWithValidation(JComponent field, JLabel errorLabel) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setOpaque(false);
+        field.setAlignmentX(Component.LEFT_ALIGNMENT);
+        errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(field);
+        panel.add(Box.createVerticalStrut(2));
+        panel.add(errorLabel);
+        return panel;
+    }
 }

@@ -78,9 +78,12 @@ public class CompanyDashboard extends JPanel {
 
         northPanel.add(headerCard, BorderLayout.NORTH);
 
-        approvalBanner = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        approvalBanner = new JPanel(new FlowLayout(FlowLayout.CENTER, Theme.SPACING_SMALL, 6));
         approvalBanner.setBackground(Theme.COLOR_SUBTLE_BG);
-        approvalBanner.setBorder(BorderFactory.createLineBorder(Theme.COLOR_BORDER, 1));
+        approvalBanner.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Theme.COLOR_BORDER, 1),
+                new EmptyBorder(4, Theme.SPACING_MEDIUM, 4, Theme.SPACING_MEDIUM)
+        ));
         JLabel bannerLabel = new JLabel("Account pending approval: Placement Officer verification required before you can post drives.");
         bannerLabel.setFont(Theme.FONT_BODY_BOLD);
         bannerLabel.setForeground(Theme.COLOR_ERROR);
@@ -166,10 +169,11 @@ public class CompanyDashboard extends JPanel {
         return container;
     }
 
-    private void addFormRow(JPanel panel, GridBagConstraints g, int row, String label, JTextField field) {
+    private void addFormRow(JPanel panel, GridBagConstraints g, int row, String label, JComponent field) {
         g.gridx = 0;
         g.gridy = row;
         g.gridwidth = 1;
+        g.anchor = GridBagConstraints.NORTHWEST;
         JLabel lbl = new JLabel(label);
         lbl.setFont(Theme.FONT_BODY_BOLD);
         lbl.setForeground(Theme.COLOR_TEXT_PRIMARY);
@@ -180,10 +184,7 @@ public class CompanyDashboard extends JPanel {
     }
 
     private void addFormRowWithValidation(JPanel panel, GridBagConstraints g, int row, String label, JTextField field, JLabel errorLabel) {
-        addFormRow(panel, g, row, label, field);
-        g.gridx = 1;
-        g.gridy = row + 1;
-        panel.add(errorLabel, g);
+        addFormRow(panel, g, row, label, Theme.createFieldWithValidation(field, errorLabel));
     }
 
     private JPanel createManageApplicantsPanel() {
@@ -413,6 +414,8 @@ public class CompanyDashboard extends JPanel {
         }
 
         if (invalid) {
+            revalidate();
+            repaint();
             return;
         }
 
@@ -430,6 +433,8 @@ public class CompanyDashboard extends JPanel {
             JOptionPane.showMessageDialog(this, "Placement drive published successfully. (Drive ID: " + driveId + ")", "Success", JOptionPane.INFORMATION_MESSAGE);
 
             roleField.setText("");
+            revalidate();
+            repaint();
             loadPostedDrives();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -509,12 +514,13 @@ public class CompanyDashboard extends JPanel {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Schedule Interview Round", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
-        dialog.setSize(420, 280);
+        dialog.setSize(440, 320);
         dialog.setLocationRelativeTo(this);
 
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(6, 10, 6, 10);
+        g.insets = new Insets(6, 12, 6, 12);
         g.fill = GridBagConstraints.HORIZONTAL;
+        g.anchor = GridBagConstraints.NORTHWEST;
 
         JTextField roundNameF = new JTextField("Technical Round 1", 15);
         roundNameF.setFont(Theme.FONT_BODY);
@@ -540,21 +546,15 @@ public class CompanyDashboard extends JPanel {
         dialog.add(rLbl, g);
 
         g.gridx = 1;
-        dialog.add(roundNameF, g);
+        dialog.add(Theme.createFieldWithValidation(roundNameF, roundErr), g);
 
-        g.gridx = 1; g.gridy = 2;
-        dialog.add(roundErr, g);
-
-        g.gridx = 0; g.gridy = 3;
+        g.gridx = 0; g.gridy = 2;
         JLabel dtLbl = new JLabel("Date and Time:");
         dtLbl.setFont(Theme.FONT_BODY_BOLD);
         dialog.add(dtLbl, g);
 
         g.gridx = 1;
-        dialog.add(dateTimeF, g);
-
-        g.gridx = 1; g.gridy = 4;
-        dialog.add(dateErr, g);
+        dialog.add(Theme.createFieldWithValidation(dateTimeF, dateErr), g);
 
         JButton saveBtn = new JButton("Confirm Schedule");
         Theme.stylePrimaryButton(saveBtn);
@@ -575,7 +575,11 @@ public class CompanyDashboard extends JPanel {
                 dateErr.setText("Date and time are required.");
                 invalid = true;
             }
-            if (invalid) return;
+            if (invalid) {
+                dialog.revalidate();
+                dialog.repaint();
+                return;
+            }
 
             String intId = "INT" + (DataManager.getInstance().getInterviews().size() + 401);
             Interview interview = new Interview(intId, finalTarget, round, "Scheduled", dt);
@@ -590,7 +594,7 @@ public class CompanyDashboard extends JPanel {
             loadApplicantsForSelectedDrive();
         });
 
-        g.gridx = 0; g.gridy = 5; g.gridwidth = 2;
+        g.gridx = 0; g.gridy = 3; g.gridwidth = 2;
         dialog.add(saveBtn, g);
 
         dialog.setVisible(true);
@@ -619,6 +623,8 @@ public class CompanyDashboard extends JPanel {
             postDriveButton.setEnabled(false);
         }
 
+        revalidate();
+        repaint();
         loadPostedDrives();
     }
 

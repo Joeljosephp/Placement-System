@@ -47,6 +47,7 @@ public class LoginPanel extends JPanel {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL, Theme.SPACING_SMALL);
         gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
@@ -83,13 +84,8 @@ public class LoginPanel extends JPanel {
         gbc.gridx = 1;
         emailField = new JTextField(20);
         emailField.setFont(Theme.FONT_BODY);
-        card.add(emailField, gbc);
-
-        // Email error inline
-        gbc.gridy++;
-        gbc.gridx = 1;
         emailErrorLabel = Theme.createInlineValidationLabel();
-        card.add(emailErrorLabel, gbc);
+        card.add(Theme.createFieldWithValidation(emailField, emailErrorLabel), gbc);
 
         // Password
         gbc.gridy++;
@@ -102,13 +98,8 @@ public class LoginPanel extends JPanel {
         gbc.gridx = 1;
         passwordField = new JPasswordField(20);
         passwordField.setFont(Theme.FONT_BODY);
-        card.add(passwordField, gbc);
-
-        // Password error inline
-        gbc.gridy++;
-        gbc.gridx = 1;
         passwordErrorLabel = Theme.createInlineValidationLabel();
-        card.add(passwordErrorLabel, gbc);
+        card.add(Theme.createFieldWithValidation(passwordField, passwordErrorLabel), gbc);
 
         // Login Button (single primary button on screen)
         gbc.gridy++;
@@ -167,6 +158,8 @@ public class LoginPanel extends JPanel {
     private void clearErrors() {
         emailErrorLabel.setText(" ");
         passwordErrorLabel.setText(" ");
+        revalidate();
+        repaint();
     }
 
     private void handleLogin(ActionEvent e) {
@@ -186,6 +179,8 @@ public class LoginPanel extends JPanel {
             hasError = true;
         }
         if (hasError) {
+            revalidate();
+            repaint();
             return;
         }
 
@@ -198,6 +193,8 @@ public class LoginPanel extends JPanel {
                 mainFrame.loginUser("Student", student);
             } else {
                 passwordErrorLabel.setText("Invalid student credentials.");
+                revalidate();
+                repaint();
             }
         } else if ("Company".equals(role)) {
             Company company = dm.authenticateCompany(email, password);
@@ -206,6 +203,8 @@ public class LoginPanel extends JPanel {
                 mainFrame.loginUser("Company", company);
             } else {
                 passwordErrorLabel.setText("Invalid company credentials.");
+                revalidate();
+                repaint();
             }
         } else if ("Placement Officer".equals(role)) {
             PlacementOfficer officer = dm.authenticateOfficer(email, password);
@@ -214,6 +213,8 @@ public class LoginPanel extends JPanel {
                 mainFrame.loginUser("Placement Officer", officer);
             } else {
                 passwordErrorLabel.setText("Invalid officer credentials.");
+                revalidate();
+                repaint();
             }
         }
     }
@@ -228,12 +229,13 @@ public class LoginPanel extends JPanel {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Student Registration", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
-        dialog.setSize(440, 520);
+        dialog.setSize(480, 580);
         dialog.setLocationRelativeTo(this);
 
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(4, 10, 4, 10);
+        g.insets = new Insets(5, 12, 5, 12);
         g.fill = GridBagConstraints.HORIZONTAL;
+        g.anchor = GridBagConstraints.NORTHWEST;
 
         JTextField usnF = new JTextField(15);
         JTextField nameF = new JTextField(15);
@@ -321,6 +323,8 @@ public class LoginPanel extends JPanel {
             }
 
             if (invalid) {
+                dialog.revalidate();
+                dialog.repaint();
                 return;
             }
 
@@ -331,6 +335,8 @@ public class LoginPanel extends JPanel {
                 dialog.dispose();
             } catch (IllegalArgumentException iae) {
                 usnErr.setText(iae.getMessage());
+                dialog.revalidate();
+                dialog.repaint();
             }
         });
 
@@ -346,12 +352,13 @@ public class LoginPanel extends JPanel {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Company Registration", true);
         dialog.setLayout(new GridBagLayout());
         dialog.getContentPane().setBackground(Theme.COLOR_SURFACE);
-        dialog.setSize(420, 380);
+        dialog.setSize(440, 420);
         dialog.setLocationRelativeTo(this);
 
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(4, 10, 4, 10);
+        g.insets = new Insets(5, 12, 5, 12);
         g.fill = GridBagConstraints.HORIZONTAL;
+        g.anchor = GridBagConstraints.NORTHWEST;
 
         JTextField compNameF = new JTextField(15);
         JTextField industryF = new JTextField("Software / IT", 15);
@@ -395,6 +402,8 @@ public class LoginPanel extends JPanel {
             }
 
             if (invalid) {
+                dialog.revalidate();
+                dialog.repaint();
                 return;
             }
 
@@ -409,6 +418,8 @@ public class LoginPanel extends JPanel {
                 dialog.dispose();
             } catch (Exception ex) {
                 emailErr.setText(ex.getMessage());
+                dialog.revalidate();
+                dialog.repaint();
             }
         });
 
@@ -435,9 +446,6 @@ public class LoginPanel extends JPanel {
     }
 
     private void addFormRowWithValidation(Container container, GridBagConstraints g, int row, String label, JComponent field, JLabel errorLabel) {
-        addFormRow(container, g, row, label, field);
-        g.gridx = 1;
-        g.gridy = row + 1;
-        container.add(errorLabel, g);
+        addFormRow(container, g, row, label, Theme.createFieldWithValidation(field, errorLabel));
     }
 }

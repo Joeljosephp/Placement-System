@@ -99,7 +99,7 @@ public class StudentProfilePanel extends JPanel {
 
     private JPanel createProfileCard() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setPreferredSize(new Dimension(320, 600));
+        panel.setPreferredSize(new Dimension(340, 620));
         panel.setBackground(Theme.COLOR_SURFACE);
         panel.setBorder(Theme.createCardBorder());
 
@@ -164,9 +164,10 @@ public class StudentProfilePanel extends JPanel {
         return panel;
     }
 
-    private void addField(JPanel panel, GridBagConstraints gbc, String label, JTextField field) {
+    private void addField(JPanel panel, GridBagConstraints gbc, String label, JComponent field) {
         gbc.gridx = 0;
         gbc.gridy++;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
         JLabel lbl = new JLabel(label);
         lbl.setFont(Theme.FONT_BODY_BOLD);
         lbl.setForeground(Theme.COLOR_TEXT_PRIMARY);
@@ -177,10 +178,7 @@ public class StudentProfilePanel extends JPanel {
     }
 
     private void addFieldWithValidation(JPanel panel, GridBagConstraints gbc, String label, JTextField field, JLabel errorLabel) {
-        addField(panel, gbc, label, field);
-        gbc.gridx = 1;
-        gbc.gridy++;
-        panel.add(errorLabel, gbc);
+        addField(panel, gbc, label, Theme.createFieldWithValidation(field, errorLabel));
     }
 
     private JPanel createDrivesPanel() {
@@ -329,6 +327,8 @@ public class StudentProfilePanel extends JPanel {
         }
 
         if (invalid) {
+            revalidate();
+            repaint();
             return;
         }
 
@@ -342,8 +342,12 @@ public class StudentProfilePanel extends JPanel {
             DataManager.getInstance().updateStudent(currentStudent);
             JOptionPane.showMessageDialog(this, "Profile updated successfully.", "Saved", JOptionPane.INFORMATION_MESSAGE);
             mainFrame.updateActiveUserDisplay(currentStudent.getName() + " (Student)");
+            revalidate();
+            repaint();
         } catch (IllegalArgumentException ex) {
             cgpaErrorLabel.setText(ex.getMessage());
+            revalidate();
+            repaint();
         }
     }
 
