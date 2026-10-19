@@ -1,5 +1,14 @@
-package src.com.placementsystem.gui;
+package com.placementsystem.gui;
 
-public class AdmissionDashboard {
-    
+import com.placementsystem.MainFrame;
+
+/**
+ * Compatibility alias for AdminDashboard.
+ */
+public class AdmissionDashboard extends AdminDashboard {
+    private static final long serialVersionUID = 1L;
+
+    public AdmissionDashboard(MainFrame mainFrame) {
+        super(mainFrame);
+    }
 }

@@ -1,5 +1,9 @@
-package src.com.placementsystem.model;
+package com.placementsystem.model;
 
-public class Notifiable {
-    
+/**
+ * Interface representing an entity capable of receiving notifications.
+ * Demonstrates the OOP concept of Abstraction and Interface Contracts.
+ */
+public interface Notifiable {
+    void sendNotification(String message);
 }
