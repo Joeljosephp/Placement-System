@@ -35,6 +35,7 @@ public class LoginPanel extends JPanel {
         this(mainFrame, false);
     }
 
+    @SuppressWarnings("this-escape")
     public LoginPanel(MainFrame mainFrame, boolean showDemoHints) {
         this.mainFrame = mainFrame;
         this.showDemoHints = showDemoHints;
@@ -240,6 +241,10 @@ public class LoginPanel extends JPanel {
             roleComboBox.setSelectedItem(lastSelectedRole);
         }
         clearErrors();
+    }
+
+    public void clearSession() {
+        clearFields();
     }
 
     private void showStudentRegistrationDialog() {

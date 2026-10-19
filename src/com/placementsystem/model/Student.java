@@ -14,7 +14,7 @@ public class Student extends Person implements Notifiable {
     private int backlogs;
     private String passwordHash;
     private String salt;
-    private List<Notification> notifications;
+    private ArrayList<Notification> notifications;
 
     public Student() {
         super();
@@ -52,7 +52,7 @@ public class Student extends Person implements Notifiable {
     }
 
     // CGPA must be within KTU 10-point scale
-    public void setCgpa(double cgpa) {
+    public final void setCgpa(double cgpa) {
         if (cgpa < 0.0 || cgpa > 10.0) {
             throw new IllegalArgumentException("Invalid CGPA: " + cgpa + ". CGPA must be between 0.0 and 10.0");
         }
@@ -63,7 +63,7 @@ public class Student extends Person implements Notifiable {
         return backlogs;
     }
 
-    public void setBacklogs(int backlogs) {
+    public final void setBacklogs(int backlogs) {
         if (backlogs < 0) {
             throw new IllegalArgumentException("Backlogs cannot be negative");
         }
@@ -82,7 +82,7 @@ public class Student extends Person implements Notifiable {
         return salt;
     }
 
-    public void setPassword(String password) {
+    public final void setPassword(String password) {
         if (password != null && !password.isEmpty()) {
             this.salt = PasswordUtil.generateSalt();
             this.passwordHash = PasswordUtil.hashPassword(password, this.salt);

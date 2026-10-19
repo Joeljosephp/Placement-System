@@ -8,6 +8,11 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo Running tests...
+echo Running Unit and Integration Test Suite...
 java -cp bin test.PlacementSystemTest %*
+if %errorlevel% neq 0 exit /b %errorlevel%
+
+echo.
+echo Running End-to-End Scenario Test Suite...
+java -cp bin test.ScenarioReviewTest %*
 exit /b %errorlevel%

@@ -37,13 +37,14 @@ public class MainFrame extends JFrame {
     private JButton logoutButton;
 
     private String currentRole = null;
-    private Object currentUser = null;
+    private transient Object currentUser = null;
     private final boolean showDemoHints;
 
     public MainFrame() {
         this(false);
     }
 
+    @SuppressWarnings("this-escape")
     public MainFrame(boolean showDemoHints) {
         super("Placement Management System");
         this.showDemoHints = showDemoHints;

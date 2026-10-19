@@ -26,6 +26,7 @@ public class ApplicationTrackingPanel extends JPanel {
 
     private JLabel selectedAppLabel;
 
+    @SuppressWarnings("this-escape")
     public ApplicationTrackingPanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));

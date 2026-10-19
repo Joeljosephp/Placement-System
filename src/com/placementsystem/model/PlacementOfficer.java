@@ -49,7 +49,7 @@ public class PlacementOfficer extends Person {
         return salt;
     }
 
-    public void setPassword(String password) {
+    public final void setPassword(String password) {
         if (password != null && !password.isEmpty()) {
             this.salt = PasswordUtil.generateSalt();
             this.passwordHash = PasswordUtil.hashPassword(password, this.salt);

@@ -13,7 +13,7 @@ import java.awt.event.KeyEvent;
 public class ChangePasswordDialog extends JDialog {
     private static final long serialVersionUID = 1L;
 
-    private final Object currentUser;
+    private final transient Object currentUser;
 
     private JPasswordField currentPasswordField;
     private JPasswordField newPasswordField;
@@ -23,6 +23,7 @@ public class ChangePasswordDialog extends JDialog {
     private JLabel newPassErr;
     private JLabel confirmPassErr;
 
+    @SuppressWarnings("this-escape")
     public ChangePasswordDialog(Frame parent, Object currentUser) {
         super(parent, "Change Account Password", true);
         this.currentUser = currentUser;

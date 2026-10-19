@@ -12,12 +12,12 @@ import java.util.List;
 public class PlacementData implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private List<Student> students;
-    private List<Company> companies;
-    private List<PlacementDrive> drives;
-    private List<Application> applications;
-    private List<PlacementOfficer> officers;
-    private List<Interview> interviews;
+    private ArrayList<Student> students;
+    private ArrayList<Company> companies;
+    private ArrayList<PlacementDrive> drives;
+    private ArrayList<Application> applications;
+    private ArrayList<PlacementOfficer> officers;
+    private ArrayList<Interview> interviews;
 
     public PlacementData() {
         this.students = new ArrayList<>();
@@ -34,12 +34,12 @@ public class PlacementData implements Serializable {
                          List<Application> applications,
                          List<PlacementOfficer> officers,
                          List<Interview> interviews) {
-        this.students = students != null ? students : new ArrayList<>();
-        this.companies = companies != null ? companies : new ArrayList<>();
-        this.drives = drives != null ? drives : new ArrayList<>();
-        this.applications = applications != null ? applications : new ArrayList<>();
-        this.officers = officers != null ? officers : new ArrayList<>();
-        this.interviews = interviews != null ? interviews : new ArrayList<>();
+        this.students = students != null ? new ArrayList<>(students) : new ArrayList<>();
+        this.companies = companies != null ? new ArrayList<>(companies) : new ArrayList<>();
+        this.drives = drives != null ? new ArrayList<>(drives) : new ArrayList<>();
+        this.applications = applications != null ? new ArrayList<>(applications) : new ArrayList<>();
+        this.officers = officers != null ? new ArrayList<>(officers) : new ArrayList<>();
+        this.interviews = interviews != null ? new ArrayList<>(interviews) : new ArrayList<>();
     }
 
     public List<Student> getStudents() {
@@ -48,7 +48,7 @@ public class PlacementData implements Serializable {
     }
 
     public void setStudents(List<Student> students) {
-        this.students = students;
+        this.students = students != null ? new ArrayList<>(students) : new ArrayList<>();
     }
 
     public List<Company> getCompanies() {
@@ -57,7 +57,7 @@ public class PlacementData implements Serializable {
     }
 
     public void setCompanies(List<Company> companies) {
-        this.companies = companies;
+        this.companies = companies != null ? new ArrayList<>(companies) : new ArrayList<>();
     }
 
     public List<PlacementDrive> getDrives() {
@@ -66,7 +66,7 @@ public class PlacementData implements Serializable {
     }
 
     public void setDrives(List<PlacementDrive> drives) {
-        this.drives = drives;
+        this.drives = drives != null ? new ArrayList<>(drives) : new ArrayList<>();
     }
 
     public List<Application> getApplications() {
@@ -75,7 +75,7 @@ public class PlacementData implements Serializable {
     }
 
     public void setApplications(List<Application> applications) {
-        this.applications = applications;
+        this.applications = applications != null ? new ArrayList<>(applications) : new ArrayList<>();
     }
 
     public List<PlacementOfficer> getOfficers() {
@@ -84,7 +84,7 @@ public class PlacementData implements Serializable {
     }
 
     public void setOfficers(List<PlacementOfficer> officers) {
-        this.officers = officers;
+        this.officers = officers != null ? new ArrayList<>(officers) : new ArrayList<>();
     }
 
     public List<Interview> getInterviews() {
@@ -93,6 +93,6 @@ public class PlacementData implements Serializable {
     }
 
     public void setInterviews(List<Interview> interviews) {
-        this.interviews = interviews;
+        this.interviews = interviews != null ? new ArrayList<>(interviews) : new ArrayList<>();
     }
 }

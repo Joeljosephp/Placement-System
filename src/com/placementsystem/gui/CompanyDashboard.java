@@ -48,6 +48,7 @@ public class CompanyDashboard extends JPanel {
 
     private PlacementDrive selectedDrive;
 
+    @SuppressWarnings("this-escape")
     public CompanyDashboard(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));

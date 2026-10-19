@@ -17,7 +17,7 @@ public class Company implements Notifiable, Serializable {
     private String salt;
     private boolean isApproved;
     private String rejectionReason;
-    private List<Notification> notifications;
+    private ArrayList<Notification> notifications;
 
     public Company() {
         this.isApproved = false;
@@ -83,7 +83,7 @@ public class Company implements Notifiable, Serializable {
         return salt;
     }
 
-    public void setPassword(String password) {
+    public final void setPassword(String password) {
         if (password != null && !password.isEmpty()) {
             this.salt = PasswordUtil.generateSalt();
             this.passwordHash = PasswordUtil.hashPassword(password, this.salt);

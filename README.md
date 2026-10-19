@@ -37,8 +37,12 @@ java -cp bin com.placementsystem.Main
 ### Running Tests
 Plain Java test cases without external dependencies:
 ```bash
-javac -encoding UTF-8 -cp bin -d bin test/PlacementSystemTest.java
-java -cp bin test.PlacementSystemTest
+# macOS / Linux
+chmod +x test.sh
+./test.sh
+
+# Windows
+test.bat
 ```
 
 ## Demo Logins

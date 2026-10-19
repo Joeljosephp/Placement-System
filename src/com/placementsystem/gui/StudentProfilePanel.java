@@ -51,8 +51,9 @@ public class StudentProfilePanel extends JPanel {
     private DefaultTableModel applicationsTableModel;
     private DefaultListModel<String> notificationListModel;
 
-    private List<PlacementDrive> currentRenderedDrives = new ArrayList<>();
+    private transient List<PlacementDrive> currentRenderedDrives = new ArrayList<>();
 
+    @SuppressWarnings("this-escape")
     public StudentProfilePanel(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
@@ -289,6 +290,8 @@ public class StudentProfilePanel extends JPanel {
     }
 
     private class DriveEligibilityRenderer extends DefaultTableCellRenderer {
+        private static final long serialVersionUID = 1L;
+
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
                                                        boolean isSelected, boolean hasFocus, int row, int col) {

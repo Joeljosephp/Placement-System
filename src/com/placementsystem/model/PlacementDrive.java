@@ -15,7 +15,7 @@ public class PlacementDrive implements Serializable {
     private int maxBacklogsAllowed;
     private String driveDate;
     private String venue;
-    private List<Application> applicants;
+    private ArrayList<Application> applicants;
 
     public PlacementDrive() {
         this.applicants = new ArrayList<>();
@@ -61,7 +61,7 @@ public class PlacementDrive implements Serializable {
         return packageOffered;
     }
 
-    public void setPackageOffered(double packageOffered) {
+    public final void setPackageOffered(double packageOffered) {
         if (packageOffered < 0.5 || packageOffered > 150.0) {
             throw new IllegalArgumentException("Package must be between 0.5 and 150.0 LPA");
         }
@@ -72,7 +72,7 @@ public class PlacementDrive implements Serializable {
         return eligibleCGPA;
     }
 
-    public void setEligibleCGPA(double eligibleCGPA) {
+    public final void setEligibleCGPA(double eligibleCGPA) {
         if (eligibleCGPA < 0.0 || eligibleCGPA > 10.0) {
             throw new IllegalArgumentException("Eligible CGPA must be between 0.0 and 10.0");
         }
@@ -83,7 +83,7 @@ public class PlacementDrive implements Serializable {
         return maxBacklogsAllowed;
     }
 
-    public void setMaxBacklogsAllowed(int maxBacklogsAllowed) {
+    public final void setMaxBacklogsAllowed(int maxBacklogsAllowed) {
         if (maxBacklogsAllowed < 0 || maxBacklogsAllowed > 50) {
             throw new IllegalArgumentException("Max backlogs must be between 0 and 50");
         }
@@ -94,7 +94,7 @@ public class PlacementDrive implements Serializable {
         return driveDate;
     }
 
-    public void setDriveDate(String driveDate) {
+    public final void setDriveDate(String driveDate) {
         if (driveDate != null && !driveDate.trim().isEmpty()) {
             try {
                 java.time.LocalDate.parse(driveDate.trim(), java.time.format.DateTimeFormatter.ISO_LOCAL_DATE);
@@ -131,7 +131,7 @@ public class PlacementDrive implements Serializable {
     }
 
     public void setApplicants(List<Application> applicants) {
-        this.applicants = applicants;
+        this.applicants = applicants != null ? new ArrayList<>(applicants) : new ArrayList<>();
     }
 
     // Checks if a student meets both CGPA and maximum backlog criteria

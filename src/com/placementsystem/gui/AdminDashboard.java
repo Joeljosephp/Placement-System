@@ -34,6 +34,7 @@ public class AdminDashboard extends JPanel {
     private JTable placedCandidatesTable;
     private DefaultTableModel placedCandidatesModel;
 
+    @SuppressWarnings("this-escape")
     public AdminDashboard(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
         setLayout(new BorderLayout(Theme.SPACING_MEDIUM, Theme.SPACING_MEDIUM));
